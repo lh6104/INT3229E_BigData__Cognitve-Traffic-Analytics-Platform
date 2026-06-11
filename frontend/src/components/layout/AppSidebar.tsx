@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 
 const overview = [
-  { title: "Demo Flow", to: "/demo", icon: Sparkles },
   { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { title: "Live Map", to: "/live-map", icon: Map },
   { title: "Forecast", to: "/forecast", icon: TrendingUp },
@@ -22,8 +21,8 @@ const overview = [
 
 const operations = [
   { title: "Alerts", to: "/alerts", icon: Bell },
-  { title: "Explanations", to: "/explanations", icon: Brain, badge: "Demo" },
-  { title: "Monitoring", to: "/monitoring", icon: Activity, badge: "Demo" },
+  { title: "Explanations", to: "/explanations", icon: Brain },
+  { title: "Monitoring", to: "/monitoring", icon: Activity },
 ];
 
 export function AppSidebar() {
@@ -85,7 +84,7 @@ export function AppSidebar() {
         SETTINGS
       </div>
       <nav className="flex flex-col gap-1">
-        <NavItem to="/settings" title="Settings" icon={Settings} badge="Local" />
+        <NavItem to="/settings" title="Settings" icon={Settings} />
         <button className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10">
           <LogOut className="h-[18px] w-[18px]" />
           Logout

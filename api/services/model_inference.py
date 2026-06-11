@@ -16,7 +16,7 @@ import pandas as pd
 from api.services.local_data import PROJECT_ROOT, latest_by_segment, traffic_features
 
 
-DEFAULT_MODEL_DIR = "result/cta_training_outputs_balanced_v3_latest"
+DEFAULT_MODEL_DIR = "results/cta_training_outputs_balanced_v3_latest"
 MODEL_ARTIFACT_CANDIDATES = {
     "15m": [
         "selected_model_15m_speed_lightgbm_main.joblib",
@@ -139,7 +139,50 @@ def _read_training_summary() -> list[dict[str, Any]]:
         if not path.exists():
             return []
         try:
-            return pd.read_csv(path).to_dict(orient="records")
+            rows = pd.read_csv(path).to_dict(orient="records")
+            artifact_manifest = model_dir() / "ml_upgrade_pack" / "selected_lightgbm_artifacts.csv"
+            artifact_rows = {}
+            if artifact_manifest.exists():
+                try:
+                    artifact_rows = {
+                        str(item.get("horizon")): item
+                        for item in pd.read_csv(artifact_manifest).to_dict(orient="records")
+                    }
+                except Exception:
+                    artifact_rows = {}
+            manifest_path = model_dir() / "ml_upgrade_pack" / "artifact_manifest.json"
+            manifest_rows = {}
+            if manifest_path.exists():
+                try:
+                    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    manifest_rows = {
+                        str(item.get("horizon")): item
+                        for item in payload
+                        if isinstance(item, dict)
+                    }
+                except Exception:
+                    manifest_rows = {}
+            normalized = []
+            for item in rows:
+                task = str(item.get("task", ""))
+                horizon = "15m" if "15m" in task else "60m" if "60m" in task else ""
+                artifact_info = artifact_rows.get(horizon, {})
+                manifest_info = manifest_rows.get(horizon, {})
+                normalized.append(
+                    {
+                        **item,
+                        "mae": item.get("mae", item.get("test_MAE", item.get("val_MAE", 0.0))),
+                        "rmse": item.get("rmse", item.get("test_RMSE", item.get("val_RMSE", 0.0))),
+                        "r2": item.get("r2", item.get("test_R2", item.get("val_R2", 0.0))),
+                        "rows": manifest_info.get("test_rows", manifest_info.get("training_rows", item.get("rows", 0))),
+                        "feature_count": artifact_info.get(
+                            "required_feature_count",
+                            manifest_info.get("required_feature_count", item.get("feature_count", 0)),
+                        ),
+                        "artifact": artifact_info.get("artifact", item.get("artifact", "")),
+                    }
+                )
+            return normalized
         except Exception:
             return []
     try:

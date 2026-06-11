@@ -1,0 +1,12 @@
+low_speed_kph: 20
+free_flow_ratio_threshold: 0.5
+speed_drop_pct_threshold: 30
+high_risk_threshold: 60
+critical_risk_threshold: 80
+
+weights:
+  low_speed: 35
+  free_flow_ratio: 25
+  speed_drop: 20
+  current_jam: 10
+  context_multiplier: 10

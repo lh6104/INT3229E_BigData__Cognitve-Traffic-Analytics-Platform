@@ -127,6 +127,13 @@ function HotspotsPage() {
   }, [selectedId, setSelectedSegment]);
 
   const visibleHotspots = useMemo(() => (data ?? []).map(toHotspot), [data]);
+  const activeCount = visibleHotspots.length;
+  const criticalCount = visibleHotspots.filter((h) => h.severity === "Critical").length;
+  const affectedSegments = visibleHotspots.reduce((total, h) => total + h.segments, 0);
+  const avgClusterSpeed =
+    visibleHotspots.length === 0
+      ? null
+      : visibleHotspots.reduce((total, h) => total + h.avgSpeed, 0) / visibleHotspots.length;
 
   const handleMapClick = (h: Hotspot) => {
     setSelectedId(h.id);
@@ -149,17 +156,17 @@ function HotspotsPage() {
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { l: "Active hotspots", v: "12", d: "+ 3 in last hour" },
-            { l: "Critical clusters", v: "2", d: "Both rising" },
-            { l: "Affected segments", v: "44", d: "vs baseline 18" },
-            { l: "Avg cluster speed", v: "19 km/h", d: "− 9 km/h" },
+            { l: "Active hotspots", v: isLoading && !data ? "..." : String(activeCount), d: "from /hotspots" },
+            { l: "Critical clusters", v: isLoading && !data ? "..." : String(criticalCount), d: "current severity" },
+            { l: "Affected segments", v: isLoading && !data ? "..." : String(affectedSegments), d: "cluster total" },
+            { l: "Avg cluster speed", v: avgClusterSpeed == null ? "n/a" : `${avgClusterSpeed.toFixed(1)} km/h`, d: "estimated from cluster data" },
           ].map((s) => (
             <div key={s.l} className="rounded-2xl bg-card p-5">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Flame className="h-3.5 w-3.5" /> {s.l}
                 </div>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Demo KPI</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">API</span>
               </div>
               <div className="mt-3 text-2xl font-semibold">{s.v}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">{s.d}</div>

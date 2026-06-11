@@ -1,0 +1,22 @@
+{
+  "city_toggles": {
+    "hanoi": true,
+    "hcmc": true
+  },
+  "thresholds": {
+    "critical_jam_factor": 6.0,
+    "high_jam_factor": 4.0,
+    "medium_jam_factor": 3.0
+  },
+  "intervals": {
+    "traffic_seconds": 60,
+    "weather_seconds": 300,
+    "alerts_seconds": 30,
+    "monitoring_seconds": 30
+  },
+  "map": {
+    "default_city": "hanoi",
+    "zoom_level": 13
+  },
+  "updated_at": "2026-06-11T20:01:11.838617Z"
+}

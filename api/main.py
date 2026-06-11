@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 import uvicorn
 
-from api.routers import alerts, dashboard, explain, hotspots, monitoring, routing, segments, settings, traffic
+from api.routers import alerts, dashboard, explain, hotspots, monitoring, routing, segments, settings, system, traffic
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,6 +49,7 @@ allowed_origins = os.getenv(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in allowed_origins if origin.strip()],
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -131,6 +132,12 @@ app.include_router(
     dashboard.router,
     prefix="/dashboard",
     tags=["dashboard"],
+)
+
+app.include_router(
+    system.router,
+    prefix="/system",
+    tags=["system"],
 )
 
 

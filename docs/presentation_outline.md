@@ -50,7 +50,7 @@ Suggested structure for a 60-minute capstone presentation.
 - Open Forecast page.
 - Select a real segment such as `HN_005`.
 - Show 15-minute and 60-minute predictions.
-- Explain LightGBM model, model source, artifact, and feature coverage.
+- Explain model name, model source, artifact, and feature coverage as returned by the API.
 - Point out `Partial feature fill` honestly.
 
 ## 53-56 min: Predicted Hotspots
@@ -61,13 +61,15 @@ Suggested structure for a 60-minute capstone presentation.
 /hotspots/predicted?city=hanoi&horizon=15m
 ```
 
-- Explain demo rules: low predicted speed, low predicted/free-flow ratio, large speed drop.
+- Explain prototype risk scoring: low predicted speed, low predicted/free-flow ratio, large speed drop, current jam factor, and context signals.
+- Show `risk_score`, `triggered_rules`, and `context_explanation`.
 
 ## 56-59 min: Results
 
 - Tests pass in Docker Python 3.11.
 - Frontend build passes.
-- Model metrics: MAE around 4.45-4.49 kph, R2 around 0.888.
+- Model metrics should be read from `/traffic/model/status` or the generated report, not hard-coded.
+- Show smoke/benchmark reports if generated: `docs/demo_smoke_report.md`, `docs/performance_report.md`.
 - Demo coverage and endpoint readiness.
 
 ## 59-60 min: Limitations And Q&A
@@ -76,4 +78,5 @@ Suggested structure for a 60-minute capstone presentation.
 - Some Monitoring/System Health elements remain demo/static.
 - Forecast still fills part of the model feature vector.
 - Streaming is not fully productionized.
+- `/hotspots/predicted` is prototype explainable risk scoring, not a production risk engine.
 - Q&A.

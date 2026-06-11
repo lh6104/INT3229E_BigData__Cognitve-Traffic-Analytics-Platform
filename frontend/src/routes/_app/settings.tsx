@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import { toast } from "sonner";
-import { MapPin, Bell, Clock, Save } from "lucide-react";
+import { Bell, Clock, MapPin, Save, Settings as SettingsIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -14,133 +15,142 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { apiGet, apiPut } from "@/lib/api/client";
 
-const STORAGE_KEY = "ctap_settings";
+type CityKey = "hanoi" | "hcmc";
 
-interface CityConfig {
+type CityRuntime = {
   enabled: boolean;
-  lastUpdate: string;
-  segmentCount: number;
   status: "online" | "offline";
-}
-
-interface AlertThresholds {
-  critical: number;
-  high: number;
-  medium: number;
-}
-
-interface RefreshIntervals {
-  traffic: string;
-  weather: string;
-  alerts: string;
-}
-
-interface SettingsData {
-  cities: Record<string, CityConfig>;
-  thresholds: AlertThresholds;
-  intervals: RefreshIntervals;
-}
-
-const defaultSettings: SettingsData = {
-  cities: {
-    Hanoi: {
-      enabled: true,
-      lastUpdate: "2 min ago",
-      segmentCount: 482,
-      status: "online",
-    },
-    "Ho Chi Minh City": {
-      enabled: true,
-      lastUpdate: "1 min ago",
-      segmentCount: 623,
-      status: "online",
-    },
-  },
-  thresholds: {
-    critical: 0.6,
-    high: 0.8,
-    medium: 0.9,
-  },
-  intervals: {
-    traffic: "1min",
-    weather: "5min",
-    alerts: "30s",
-  },
+  segment_count: number;
+  latest_timestamp: string | null;
+  avg_speed: number | null;
+  avg_jam_factor: number | null;
 };
 
-function loadSettings(): SettingsData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<SettingsData>;
-      return {
-        cities: { ...defaultSettings.cities, ...parsed.cities },
-        thresholds: { ...defaultSettings.thresholds, ...parsed.thresholds },
-        intervals: { ...defaultSettings.intervals, ...parsed.intervals },
-      };
-    }
-  } catch {
-    // ignore parse errors
-  }
-  return defaultSettings;
-}
+type SettingsData = {
+  city_toggles: Record<CityKey, boolean>;
+  thresholds: {
+    critical_jam_factor: number;
+    high_jam_factor: number;
+    medium_jam_factor: number;
+  };
+  intervals: {
+    traffic_seconds: number;
+    weather_seconds: number;
+    alerts_seconds: number;
+    monitoring_seconds: number;
+  };
+  map: {
+    default_city: CityKey;
+    zoom_level: number;
+  };
+  updated_at: string | null;
+};
 
-function saveSettings(data: SettingsData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+type SettingsResponse = SettingsData & {
+  cities: Record<CityKey, CityRuntime>;
+  storage_path: string;
+};
+
+const CITY_LABEL: Record<CityKey, string> = {
+  hanoi: "Hanoi",
+  hcmc: "Ho Chi Minh City",
+};
+
+const intervalOptions = [15, 30, 60, 300, 900];
 
 export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage,
 });
 
 function SettingsPage() {
-  const [settings, setSettings] = useState<SettingsData>(loadSettings);
+  const { data, error, isLoading, mutate } = useSWR<SettingsResponse>("/settings", apiGet, {
+    refreshInterval: 60_000,
+  });
+  const [draft, setDraft] = useState<SettingsData | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setSettings(loadSettings());
-  }, []);
+    if (data) {
+      setDraft({
+        city_toggles: data.city_toggles,
+        thresholds: data.thresholds,
+        intervals: data.intervals,
+        map: data.map,
+        updated_at: data.updated_at,
+      });
+    }
+  }, [data]);
 
-  const toggleCity = (city: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      cities: {
-        ...prev.cities,
-        [city]: {
-          ...prev.cities[city],
-          enabled: !prev.cities[city].enabled,
-        },
-      },
-    }));
+  const dirty = useMemo(() => {
+    if (!draft || !data) return false;
+    return JSON.stringify({
+      city_toggles: data.city_toggles,
+      thresholds: data.thresholds,
+      intervals: data.intervals,
+      map: data.map,
+    }) !== JSON.stringify({
+      city_toggles: draft.city_toggles,
+      thresholds: draft.thresholds,
+      intervals: draft.intervals,
+      map: draft.map,
+    });
+  }, [data, draft]);
+
+  const updateDraft = (next: Partial<SettingsData>) => {
+    setDraft((prev) => (prev ? { ...prev, ...next } : prev));
   };
 
-  const setThreshold = (key: keyof AlertThresholds, value: number) => {
-    setSettings((prev) => ({
-      ...prev,
-      thresholds: { ...prev.thresholds, [key]: value },
-    }));
+  const setThreshold = (key: keyof SettingsData["thresholds"], value: number) => {
+    setDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            thresholds: { ...prev.thresholds, [key]: value },
+          }
+        : prev
+    );
   };
 
-  const setInterval = (key: keyof RefreshIntervals, value: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      intervals: { ...prev.intervals, [key]: value },
-    }));
+  const setInterval = (key: keyof SettingsData["intervals"], value: number) => {
+    setDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            intervals: { ...prev.intervals, [key]: value },
+          }
+        : prev
+    );
   };
 
-  const handleSave = () => {
-    saveSettings(settings);
-    toast.success("Settings saved successfully");
+  const toggleCity = (city: CityKey) => {
+    setDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            city_toggles: { ...prev.city_toggles, [city]: !prev.city_toggles[city] },
+          }
+        : prev
+    );
   };
 
-  const intervalOptions: Record<keyof RefreshIntervals, string[]> = {
-    traffic: ["30s", "1min", "5min"],
-    weather: ["1min", "5min", "15min"],
-    alerts: ["15s", "30s", "1min"],
+  const handleSave = async () => {
+    if (!draft) return;
+    setSaving(true);
+    try {
+      const saved = await apiPut<SettingsResponse>("/settings", draft);
+      await mutate(saved, { revalidate: false });
+      toast.success("Settings saved to backend");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save settings");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const thresholdMeta: {
-    key: keyof AlertThresholds;
+    key: keyof SettingsData["thresholds"];
     label: string;
     description: string;
     min: number;
@@ -148,42 +158,78 @@ function SettingsPage() {
     step: number;
   }[] = [
     {
-      key: "critical",
-      label: "Critical",
-      description: "speed < threshold × p50 baseline",
-      min: 0.5,
-      max: 0.9,
-      step: 0.01,
+      key: "critical_jam_factor",
+      label: "Critical jam factor",
+      description: "Critical alerts trigger at or above this jam factor",
+      min: 5,
+      max: 10,
+      step: 0.1,
     },
     {
-      key: "high",
-      label: "High",
-      description: "speed < threshold × p15 baseline",
-      min: 0.6,
-      max: 0.95,
-      step: 0.01,
+      key: "high_jam_factor",
+      label: "High jam factor",
+      description: "High alerts trigger at or above this jam factor",
+      min: 3,
+      max: 8,
+      step: 0.1,
     },
     {
-      key: "medium",
-      label: "Medium",
-      description: "speed < threshold × p50 baseline",
-      min: 0.7,
-      max: 1.0,
-      step: 0.01,
+      key: "medium_jam_factor",
+      label: "Medium jam factor",
+      description: "Medium alerts trigger at or above this jam factor",
+      min: 1,
+      max: 6,
+      step: 0.1,
     },
   ];
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Settings" subtitle="Configure platform runtime settings" />
+        <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+          Settings API unavailable: {error.message}
+        </div>
+      </div>
+    );
+  }
+
+  if (!draft || isLoading) {
+    return (
+      <div>
+        <PageHeader title="Settings" subtitle="Configure platform runtime settings" />
+        <div className="rounded-3xl bg-card p-6 text-sm text-muted-foreground">Loading settings...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Configure cities, alert thresholds, and data refresh intervals"
+        subtitle="Configure monitored cities, alert thresholds, refresh intervals, and default map behavior"
       />
       <div className="space-y-4">
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
-          Local demo settings. Changes are stored in this browser only and do not update backend configuration.
-        </div>
-        {/* Cities & Coverage */}
+        <section className="rounded-3xl bg-card p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
+                <SettingsIcon className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold">Runtime State</h2>
+                <p className="text-xs text-muted-foreground">
+                  Settings are persisted through the FastAPI backend.
+                </p>
+              </div>
+            </div>
+            <div className="text-right text-[11px] text-muted-foreground">
+              <div>Storage: <span className="font-mono">{data?.storage_path ?? "data/app_settings.json"}</span></div>
+              <div>Updated: {data?.updated_at ? new Date(data.updated_at).toLocaleString() : "not saved yet"}</div>
+            </div>
+          </div>
+        </section>
+
         <section className="rounded-3xl bg-card p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -192,44 +238,43 @@ function SettingsPage() {
               </div>
               <h2 className="text-base font-semibold">Cities & Coverage</h2>
             </div>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Local demo</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Toggle city monitoring on or off for the local UI state
+            City status and coverage come from latest local Gold traffic features.
           </p>
           <div className="mt-4 space-y-3">
-            {Object.entries(settings.cities).map(([name, city]) => (
-              <div
-                key={name}
-                className="flex items-center justify-between rounded-2xl border border-border px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      city.status === "online" && city.enabled
-                        ? "bg-success"
-                        : "bg-destructive"
-                    }`}
-                  />
-                  <div>
-                    <div className="text-sm font-medium">{name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {city.segmentCount} segments · Last update{" "}
-                      {city.lastUpdate}
+            {(Object.keys(CITY_LABEL) as CityKey[]).map((cityKey) => {
+              const city = data?.cities[cityKey];
+              const enabled = draft.city_toggles[cityKey];
+              return (
+                <div
+                  key={cityKey}
+                  className="flex items-center justify-between rounded-2xl border border-border px-4 py-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        city?.status === "online" && enabled ? "bg-success" : "bg-destructive"
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{CITY_LABEL[cityKey]}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {city?.segment_count ?? 0} segments · {formatSpeed(city?.avg_speed)} avg · Jam {city?.avg_jam_factor ?? "n/a"} · Updated {formatDate(city?.latest_timestamp)}
+                      </div>
                     </div>
                   </div>
+                  <Switch
+                    checked={enabled}
+                    onCheckedChange={() => toggleCity(cityKey)}
+                    aria-label={`Toggle ${CITY_LABEL[cityKey]}`}
+                  />
                 </div>
-                <Switch
-                  checked={city.enabled}
-                  onCheckedChange={() => toggleCity(name)}
-                  aria-label={`Toggle ${name}`}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
-        {/* Alert Thresholds */}
         <section className="rounded-3xl bg-card p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -238,10 +283,9 @@ function SettingsPage() {
               </div>
               <h2 className="text-base font-semibold">Alert Thresholds</h2>
             </div>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Local demo</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Adjust severity trigger levels for the local UI state
+            Thresholds are validated by the backend before saving.
           </p>
           <div className="mt-4 space-y-5">
             {thresholdMeta.map((t) => (
@@ -249,17 +293,15 @@ function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-sm font-medium">{t.label}</Label>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t.description}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{t.description}</p>
                   </div>
                   <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
-                    {Math.round(settings.thresholds[t.key] * 100)}%
+                    {draft.thresholds[t.key].toFixed(1)}
                   </span>
                 </div>
                 <div className="mt-3">
                   <Slider
-                    value={[settings.thresholds[t.key]]}
+                    value={[draft.thresholds[t.key]]}
                     onValueChange={(val) => setThreshold(t.key, val[0])}
                     min={t.min}
                     max={t.max}
@@ -271,56 +313,110 @@ function SettingsPage() {
           </div>
         </section>
 
-        {/* Data Refresh Intervals */}
         <section className="rounded-3xl bg-card p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
                 <Clock className="h-4 w-4" />
               </div>
-              <h2 className="text-base font-semibold">Data Refresh Intervals</h2>
+              <h2 className="text-base font-semibold">Refresh & Map Defaults</h2>
             </div>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Local demo</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            How often each local UI data stream is refreshed
-          </p>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {(Object.keys(intervalOptions) as (keyof RefreshIntervals)[]).map(
-              (key) => (
-                <div key={key}>
-                  <Label className="mb-2 block text-sm font-medium capitalize">
-                    {key} data
-                  </Label>
-                  <Select
-                    value={settings.intervals[key]}
-                    onValueChange={(val) => setInterval(key, val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {intervalOptions[key].map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )
-            )}
+            {([
+              ["traffic_seconds", "Traffic"],
+              ["weather_seconds", "Weather"],
+              ["alerts_seconds", "Alerts"],
+              ["monitoring_seconds", "Monitoring"],
+            ] as [keyof SettingsData["intervals"], string][]).map(([key, label]) => (
+              <div key={key}>
+                <Label className="mb-2 block text-sm font-medium">{label}</Label>
+                <Select
+                  value={String(draft.intervals[key])}
+                  onValueChange={(val) => setInterval(key, Number(val))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {intervalOptions.map((opt) => (
+                      <SelectItem key={opt} value={String(opt)}>
+                        {formatInterval(opt)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+            <div>
+              <Label className="mb-2 block text-sm font-medium">Default city</Label>
+              <Select
+                value={draft.map.default_city}
+                onValueChange={(val) =>
+                  updateDraft({ map: { ...draft.map, default_city: val as CityKey } })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hanoi">Hanoi</SelectItem>
+                  <SelectItem value="hcmc">Ho Chi Minh City</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="mt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Map zoom level</Label>
+                <p className="text-[11px] text-muted-foreground">Default initial zoom for map workflows</p>
+              </div>
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
+                {draft.map.zoom_level}
+              </span>
+            </div>
+            <div className="mt-3">
+              <Slider
+                value={[draft.map.zoom_level]}
+                onValueChange={(val) => updateDraft({ map: { ...draft.map, zoom_level: val[0] } })}
+                min={8}
+                max={18}
+                step={1}
+              />
+            </div>
           </div>
         </section>
 
-        {/* Save */}
-        <div className="flex justify-end pt-2">
-          <Button onClick={handleSave}>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => data && setDraft({
+            city_toggles: data.city_toggles,
+            thresholds: data.thresholds,
+            intervals: data.intervals,
+            map: data.map,
+            updated_at: data.updated_at,
+          })} disabled={!dirty || saving}>
+            Reset
+          </Button>
+          <Button onClick={handleSave} disabled={!dirty || saving}>
             <Save className="mr-2 h-4 w-4" />
-            Save settings
+            {saving ? "Saving..." : "Save settings"}
           </Button>
         </div>
       </div>
     </div>
   );
+}
+
+function formatSpeed(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)} km/h` : "n/a";
+}
+
+function formatDate(value?: string | null) {
+  return value ? new Date(value).toLocaleString() : "n/a";
+}
+
+function formatInterval(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.round(seconds / 60)}min`;
 }

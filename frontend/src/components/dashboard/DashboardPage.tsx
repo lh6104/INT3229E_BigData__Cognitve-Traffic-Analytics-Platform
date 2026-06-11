@@ -10,8 +10,6 @@ import {
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -22,22 +20,6 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { apiGet } from "@/lib/api/client";
 import { useAppStore } from "@/lib/store/useAppStore";
-
-const demoTrend = Array.from({ length: 24 }, (_, i) => ({
-  hour: `${i}:00`,
-  speed: 28 + Math.sin(i / 3) * 12 + (i > 7 && i < 10 ? -8 : 0) + (i > 16 && i < 20 ? -10 : 0),
-  jam: 4 + Math.cos(i / 3) * 1.5 + (i > 7 && i < 10 ? 2 : 0) + (i > 16 && i < 20 ? 3 : 0),
-}));
-
-const segments = [
-  { name: "Mon", value: 38 },
-  { name: "Tue", value: 45 },
-  { name: "Wed", value: 32 },
-  { name: "Thu", value: 58 },
-  { name: "Fri", value: 72 },
-  { name: "Sat", value: 41 },
-  { name: "Sun", value: 29 },
-];
 
 type DashboardSummary = {
   city: string;
@@ -70,20 +52,6 @@ type DashboardTrends = {
   message?: string | null;
 };
 
-const demoSummary: DashboardSummary = {
-  city: "hanoi",
-  monitored_segments: 2481,
-  active_alerts: 17,
-  free_flow_segments: 1842,
-  slow_segments: 412,
-  congested_segments: 227,
-  avg_speed: 34,
-  avg_jam_factor: 5.4,
-  latest_timestamp: null,
-  data_source: "demo_fallback",
-  is_demo: true,
-};
-
 const emptySummary: DashboardSummary = {
   city: "hanoi",
   monitored_segments: 0,
@@ -96,6 +64,65 @@ const emptySummary: DashboardSummary = {
   latest_timestamp: null,
   data_source: "gold_local",
   is_demo: false,
+};
+
+type ApiAlert = {
+  alert_id: string;
+  segment_id: string;
+  city: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  reason: string;
+  predicted_speed: number;
+  baseline_p50: number;
+  created_at: string;
+  acknowledged: boolean;
+};
+
+type TrafficSegment = {
+  segment_id: string;
+  city: string;
+  current_speed: number;
+  free_flow_speed: number;
+  jam_factor: number;
+  timestamp: string;
+  road_class: string;
+  district: string;
+};
+
+type MonitoringModel = {
+  ready: boolean;
+  model_dir: string;
+  models: Array<{
+    horizon_minutes: number;
+    mae: number;
+    rmse: number;
+    r2_score: number;
+    rows: number;
+    feature_count: number;
+    artifact: string;
+  }>;
+};
+
+type SystemStatus = {
+  api: { status: string; uptime_seconds: number };
+  data: {
+    status: string;
+    gold_row_count: number;
+    segment_count: number;
+    latest_data_timestamp?: string | null;
+  };
+  model: {
+    loaded: boolean;
+    model_name?: string | null;
+    average_feature_coverage_ratio?: number | null;
+  };
+  performance: {
+    status: string;
+    forecast_p95_ms?: number | null;
+    dashboard_summary_p95_ms?: number | null;
+    predicted_hotspots_p95_ms?: number | null;
+  };
+  streaming: { status: string; kafka_enabled: boolean };
 };
 
 function StatCard({
@@ -143,31 +170,49 @@ export function DashboardPage() {
     apiGet,
     { revalidateOnFocus: false, shouldRetryOnError: false }
   );
+  const { data: alerts, error: alertsError, isLoading: alertsLoading } = useSWR<ApiAlert[]>(
+    `/alerts/active?city=${city}&limit=20`,
+    apiGet,
+    { refreshInterval: 60_000, revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  const { data: modelStatus } = useSWR<MonitoringModel>(
+    "/monitoring/model",
+    apiGet,
+    { refreshInterval: 60_000, revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  const { data: systemStatus } = useSWR<SystemStatus>(
+    "/system/status",
+    apiGet,
+    { refreshInterval: 30_000, revalidateOnFocus: false, shouldRetryOnError: false }
+  );
 
-  const usingDemoFallback = Boolean(summaryError || trendsError);
-  const summaryView = summaryError ? demoSummary : summary ?? { ...emptySummary, city };
-  const summarySourceLabel = summaryError ? "Demo fallback" : "API";
-  const trendSourceLabel = trendsError ? "Demo fallback" : "API";
+  const summaryView = summary ?? { ...emptySummary, city };
+  const summarySourceLabel = summaryError ? "Unavailable" : "API";
+  const trendSourceLabel = trendsError ? "Unavailable" : "API";
   const trendData = useMemo(() => {
-    if (trendsError) return demoTrend;
     return (trends?.points ?? []).map((point) => ({
       hour: new Date(point.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       speed: point.avg_speed,
       jam: point.avg_jam_factor,
     }));
-  }, [trends, trendsError]);
-  const hasLimitedCoverage = !usingDemoFallback && summaryView.monitored_segments > 0 && summaryView.monitored_segments < 50;
+  }, [trends]);
+  const hasLimitedCoverage = summaryView.monitored_segments > 0 && summaryView.monitored_segments < 50;
+  const alertList = alerts ?? [];
+  const criticalAlerts = alertList.filter((alert) => alert.severity === "CRITICAL").length;
+  const highAlerts = alertList.filter((alert) => alert.severity === "HIGH").length;
+  const modelRows = modelStatus?.models.reduce((total, item) => total + item.rows, 0) ?? null;
+  const primaryModel = modelStatus?.models[0];
 
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* HERO */}
       <div className="col-span-12 xl:col-span-9">
-        {usingDemoFallback && (
-          <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
-            Dashboard API unavailable. Showing demo fallback. Failed endpoints: /dashboard/summary, /dashboard/trends.
+        {(summaryError || trendsError || alertsError) && (
+          <div className="mb-4 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+            Some operational endpoints are unavailable. The dashboard is not displaying replacement data.
           </div>
         )}
-        {!usingDemoFallback && (summary?.message || trends?.message || hasLimitedCoverage) && (
+        {(summary?.message || trends?.message || hasLimitedCoverage) && (
           <div className="mb-4 rounded-2xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm font-medium text-accent-foreground">
             {summary?.message || trends?.message || "Limited local data coverage"}
           </div>
@@ -180,7 +225,7 @@ export function DashboardPage() {
           <div className="relative">
             <div className="text-[11px] font-semibold tracking-widest text-white/70">REAL-TIME ANALYTICS</div>
             <h2 className="mt-3 max-w-xl text-3xl font-semibold leading-tight">
-              Cognitive Traffic Intelligence for a Smarter City
+              Operational Traffic Intelligence from Local Gold Data
             </h2>
             <button className="mt-6 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background">
               View Live Map
@@ -316,41 +361,45 @@ export function DashboardPage() {
         <div className="mt-4 rounded-3xl bg-card p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Recent Alerts</h3>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">API</span>
           </div>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr className="text-left">
-                  <th className="pb-3 font-medium">Location</th>
-                  <th className="pb-3 font-medium">Severity</th>
-                  <th className="pb-3 font-medium">Cause</th>
-                  <th className="pb-3 font-medium">Detected</th>
-                  <th className="pb-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { loc: "Cau Giay, Hanoi", sev: "High", cause: "Peak hour + rain", t: "2m ago" },
-                  { loc: "District 1, HCMC", sev: "Critical", cause: "Accident reported", t: "8m ago" },
-                  { loc: "Dong Da, Hanoi", sev: "Medium", cause: "Public event", t: "21m ago" },
-                ].map((r) => (
-                  <tr key={r.loc} className="border-t border-border">
-                    <td className="py-3 font-medium">{r.loc}</td>
-                    <td>
-                      <SeverityBadge level={r.sev} />
-                    </td>
-                    <td className="text-muted-foreground">{r.cause}</td>
-                    <td className="text-muted-foreground">{r.t}</td>
-                    <td>
-                      <button className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-secondary">
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </button>
-                    </td>
+            {alertsLoading && !alerts ? (
+              <div className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">Loading alerts...</div>
+            ) : alertsError ? (
+              <div className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">Alerts API unavailable.</div>
+            ) : alertList.length === 0 ? (
+              <div className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">No active alerts in local Gold data.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="text-left">
+                    <th className="pb-3 font-medium">Location</th>
+                    <th className="pb-3 font-medium">Severity</th>
+                    <th className="pb-3 font-medium">Cause</th>
+                    <th className="pb-3 font-medium">Detected</th>
+                    <th className="pb-3 font-medium" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {alertList.slice(0, 5).map((alert) => (
+                    <tr key={alert.alert_id} className="border-t border-border">
+                      <td className="py-3 font-medium">{alert.segment_id}, {alert.city.toUpperCase()}</td>
+                      <td>
+                        <SeverityBadge level={formatSeverity(alert.severity)} />
+                      </td>
+                      <td className="text-muted-foreground">{alert.reason}</td>
+                      <td className="text-muted-foreground">{new Date(alert.created_at).toLocaleString()}</td>
+                      <td>
+                        <button className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-secondary">
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
@@ -360,7 +409,7 @@ export function DashboardPage() {
         <div className="rounded-3xl bg-card p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">System Health</h3>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">/system/status</span>
           </div>
           <div className="mt-5 flex flex-col items-center">
             <div className="relative">
@@ -374,7 +423,7 @@ export function DashboardPage() {
                   stroke="oklch(0.58 0.21 285)"
                   strokeWidth="6"
                   strokeDasharray="427"
-                  strokeDashoffset="76"
+                  strokeDashoffset={systemStatus?.api.status === "ok" ? "76" : "300"}
                   strokeLinecap="round"
                   transform="rotate(-90 80 80)"
                 />
@@ -383,33 +432,25 @@ export function DashboardPage() {
                 <Cpu className="h-12 w-12 text-accent-foreground" />
               </div>
               <div className="absolute right-0 top-3 rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-                82%
+                {systemStatus?.api.status === "ok" ? "OK" : "N/A"}
               </div>
             </div>
             <div className="mt-4 text-center">
-              <div className="text-lg font-semibold">All Systems Healthy ⚡</div>
+              <div className="text-lg font-semibold">
+                {systemStatus ? `API ${systemStatus.api.status}` : "System status unavailable"}
+              </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                Kafka, Spark & API operating within thresholds.
+                Data: {systemStatus?.data.status ?? "not_available"} · Streaming: {systemStatus?.streaming.status ?? "not_available"}
               </div>
             </div>
           </div>
 
           <div className="mt-6 rounded-2xl bg-secondary p-4">
-            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-              <span>Predictions / day</span>
-              <span className="font-semibold">Demo</span>
-            </div>
-            <div className="h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={segments}>
-                  <XAxis dataKey="name" stroke="oklch(0.5 0.02 270)" fontSize={10} tickLine={false} axisLine={false} />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {segments.map((_, i) => (
-                      <Bar key={i} dataKey="value" fill={i === 4 ? "oklch(0.58 0.21 285)" : "oklch(0.85 0.08 285)"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="grid gap-3 text-sm">
+              <HealthRow label="Gold rows" value={systemStatus?.data.gold_row_count?.toLocaleString() ?? "not available"} />
+              <HealthRow label="Segments" value={systemStatus?.data.segment_count?.toLocaleString() ?? "not available"} />
+              <HealthRow label="Model" value={systemStatus?.model.model_name ?? "not available"} />
+              <HealthRow label="Forecast p95" value={formatMs(systemStatus?.performance.forecast_p95_ms)} />
             </div>
           </div>
         </div>
@@ -417,13 +458,14 @@ export function DashboardPage() {
         <div className="mt-4 rounded-3xl bg-card p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Model Performance</h3>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">API</span>
           </div>
           <div className="mt-4 flex flex-col gap-3">
             {[
-              { name: "MAE", v: "3.21", sub: "v2024.11" },
-              { name: "RMSE", v: "5.07", sub: "v2024.11" },
-              { name: "Latency", v: "184 ms", sub: "p95" },
+              { name: "MAE", v: primaryModel ? primaryModel.mae.toFixed(2) : "not available", sub: primaryModel ? `${primaryModel.horizon_minutes}m horizon` : "model status" },
+              { name: "RMSE", v: primaryModel ? primaryModel.rmse.toFixed(2) : "not available", sub: primaryModel ? `${primaryModel.rows.toLocaleString()} rows` : "model status" },
+              { name: "Latency", v: formatMs(systemStatus?.performance.forecast_p95_ms), sub: "forecast p95" },
+              { name: "Train rows", v: modelRows == null ? "not available" : modelRows.toLocaleString(), sub: "all reported horizons" },
             ].map((m) => (
               <div key={m.name} className="flex items-center justify-between rounded-2xl border border-border p-3">
                 <div className="flex items-center gap-3">
@@ -460,6 +502,23 @@ function SeverityBadge({ level }: { level: string }) {
   );
 }
 
+function formatSeverity(severity: ApiAlert["severity"]) {
+  return (severity.charAt(0) + severity.slice(1).toLowerCase()) as "Critical" | "High" | "Medium" | "Low";
+}
+
+function formatMs(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)} ms` : "not measured";
+}
+
+function HealthRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="truncate text-xs font-semibold text-foreground">{value}</span>
+    </div>
+  );
+}
+
 function Sparkle() {
   return (
     <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
@@ -469,12 +528,6 @@ function Sparkle() {
 }
 
 // Default segment ids representing the most congested currently active corridors.
-const CONGESTED_DEFAULTS = [
-  "HN_001",
-  "HN_002",
-  "HN_003",
-];
-
 type UpstreamSegment = {
   id: string;
   name: string;
@@ -507,9 +560,16 @@ function StatusBadge({ status }: { status: UpstreamSegment["status"] }) {
 }
 
 function LiveCorridorTracking() {
-  const [segmentId, setSegmentId] = useSWRSafeState(CONGESTED_DEFAULTS[0]);
+  const { data: segments } = useSWR<TrafficSegment[]>(
+    "/traffic/segments?city=hanoi&limit=10",
+    apiGet,
+    { refreshInterval: 60_000, revalidateOnFocus: false }
+  );
+  const segmentIds = (segments ?? []).map((segment) => segment.segment_id);
+  const [manualSegmentId, setManualSegmentId] = useSWRSafeState<string | null>(null);
+  const segmentId = manualSegmentId ?? segmentIds[0] ?? "";
   const { data, error, isLoading, isValidating } = useSWR<UpstreamResponse>(
-    `/segments/${segmentId}/upstream`,
+    segmentId ? `/segments/${segmentId}/upstream` : null,
     fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false }
   );
@@ -520,20 +580,22 @@ function LiveCorridorTracking() {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-semibold">Live Corridor Tracking</h3>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">API</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Deterministic upstream chain for demo review · auto-refresh 60s
+            Segment chain from local traffic state · auto-refresh 60s
             {isValidating && !isLoading ? " · refreshing…" : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <select
             value={segmentId}
-            onChange={(e) => setSegmentId(e.target.value)}
+            onChange={(e) => setManualSegmentId(e.target.value)}
             className="rounded-full border border-border bg-background px-3 py-1.5 text-xs"
+            disabled={!segmentIds.length}
           >
-            {CONGESTED_DEFAULTS.map((id) => (
+            {segmentIds.length === 0 && <option value="">No segments</option>}
+            {segmentIds.map((id) => (
               <option key={id} value={id}>
                 {id}
               </option>
@@ -543,7 +605,11 @@ function LiveCorridorTracking() {
       </div>
 
       <div className="mt-4 overflow-x-auto">
-        {error ? (
+        {!segmentId ? (
+          <div className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
+            No segment data available.
+          </div>
+        ) : error ? (
           <div className="rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">
             Couldn't load upstream chain.
           </div>

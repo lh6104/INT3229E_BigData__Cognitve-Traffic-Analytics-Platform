@@ -1,0 +1,3 @@
+task,target,selected_model,selection_rule,val_MAE,val_RMSE,val_R2,test_MAE,test_RMSE,test_R2,fit_seconds
+15m_speed,target_speed_15m,lightgbm_main,Validation MAE; prefer LightGBM unless ensemble improves val MAE by >= threshold,4.3235331716369565,5.896517653321182,0.8985258517757659,4.445599219450393,6.205304835785796,0.8879863671019561,15.357
+60m_speed,target_speed_60m,lightgbm_main,Validation MAE; prefer LightGBM unless ensemble improves val MAE by >= threshold,4.382545784559647,5.961416754847365,0.8958515492049046,4.49179443598545,6.211078320720366,0.8880720571042647,15.108

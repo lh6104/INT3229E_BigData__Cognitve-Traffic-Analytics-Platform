@@ -17,28 +17,36 @@ This project is ready for a capstone/demo walkthrough, but it is not a productio
 
 ## Predicted Hotspots
 
-- `/hotspots/predicted` is a demo predictive analytics endpoint.
-- It applies transparent rules to model-predicted speed:
-  - predicted speed below 20 km/h,
-  - predicted speed below half free-flow speed,
-  - or predicted speed dropping more than 30 percent from current speed.
+- `/hotspots/predicted` is a prototype explainable risk scoring endpoint.
+- It uses configurable thresholds in `config/risk_scoring.yaml` and returns `risk_score`, `risk_level`, `triggered_rules`, and `context_explanation`.
+- The score combines forecast output, current speed/free-flow comparison, current jam factor, weather context, and event/news aggregate features when available.
 - It is not a production risk engine, incident prediction service, or calibrated traffic-control decision system.
 
 ## Monitoring And System Health
 
-- Monitoring and System Health views still contain demo/static elements.
-- They are useful for explaining the intended observability surface, but they are not wired to full infrastructure telemetry.
+- `/system/status` exposes real local demo status for API uptime, Gold data, model readiness, benchmark report status, and streaming mini-demo status.
+- Monitoring is still not a full telemetry stack. Missing runtime metrics are shown as `not_measured` or `not_available`, not inferred.
 
 ## Streaming And Infrastructure
 
 - The architecture includes Kafka, Redis, Postgres, MinIO, Trino, Airflow, and related big-data components.
 - In the current demo state, the reliable path is local/batch-oriented processing over `raw/` and `data/`.
+- `make streaming-mini-demo` provides minimal Kafka produce/consume evidence when Kafka is running. If Kafka is not running, the report is marked `SKIPPED`.
 - Real streaming ingestion and full infrastructure integration are not yet productionized.
+
+## Actual vs Target Architecture
+
+- See `docs/actual_vs_target_architecture.md` for a component-by-component distinction between demo implementation and production target.
+
+## Performance Evidence
+
+- Use `make benchmark-demo` or `python scripts/smoke_benchmark.py --base-url http://localhost:8000 --runs 20` to generate `docs/performance_report.md`.
+- Performance metrics are not production SLA evidence. If the API is not running, report rows are marked failed or `NOT MEASURED`.
 
 ## Model Artifacts
 
 - Model artifacts are not committed to normal Git history.
-- `cta_training_outputs/` and `result/cta_training_outputs_balanced_v3_latest/` are ignored to avoid storing large binary artifacts in Git.
+- `cta_training_outputs/` and `results/cta_training_outputs_balanced_v3_latest/` are ignored to avoid storing large binary artifacts in Git.
 - Use Git LFS, object storage, or a model registry for long-term artifact management.
 
 ## Frontend Fallbacks

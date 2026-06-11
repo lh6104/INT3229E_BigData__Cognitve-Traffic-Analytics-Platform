@@ -65,3 +65,24 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   }
   return response.json() as Promise<T>;
 }
+
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(urlFor(path), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Network request failed";
+    logApiFailure(path, message);
+    throw error;
+  }
+  if (!response.ok) {
+    const message = await parseApiError(response);
+    logApiFailure(path, message);
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
+}

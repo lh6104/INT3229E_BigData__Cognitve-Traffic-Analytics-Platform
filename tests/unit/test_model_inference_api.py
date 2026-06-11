@@ -61,7 +61,15 @@ def test_predicted_hotspots_endpoint_does_not_crash():
     response = client.get("/hotspots/predicted?city=hanoi&horizon=15m")
 
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    payload = response.json()
+    assert isinstance(payload, list)
+    if payload:
+        first = payload[0]
+        assert "risk_score" in first
+        assert "risk_level" in first
+        assert "triggered_rules" in first
+        assert "context_explanation" in first
+        assert 0 <= first["risk_score"] <= 100
 
 
 def test_predicted_hotspots_invalid_horizon_returns_clear_error():
@@ -69,3 +77,15 @@ def test_predicted_hotspots_invalid_horizon_returns_clear_error():
 
     assert response.status_code == 400
     assert "15m or 60m" in response.json()["error"]
+
+
+def test_system_status_endpoint_reports_demo_state():
+    response = client.get("/system/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["api"]["status"] == "ok"
+    assert "data" in payload
+    assert "model" in payload
+    assert "performance" in payload
+    assert "streaming" in payload

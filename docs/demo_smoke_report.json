@@ -1,0 +1,57 @@
+{
+  "generated_at": "2026-06-11T20:42:35.597874+00:00",
+  "base_url": "http://localhost:8000",
+  "checks": [
+    {
+      "check": "API health",
+      "status": "PASS",
+      "detail": "200 OK"
+    },
+    {
+      "check": "Dashboard summary",
+      "status": "PASS",
+      "detail": "summary returned"
+    },
+    {
+      "check": "GeoJSON features",
+      "status": "PASS",
+      "detail": "75 features"
+    },
+    {
+      "check": "Traffic segments",
+      "status": "PASS",
+      "detail": "segments > 0"
+    },
+    {
+      "check": "Forecast 15m",
+      "status": "PASS",
+      "detail": "model=lightgbm_main, coverage=52/67, latency_ms=45.0"
+    },
+    {
+      "check": "Forecast 60m",
+      "status": "PASS",
+      "detail": "model=lightgbm_main, coverage=52/67, latency_ms=22.4"
+    },
+    {
+      "check": "Predicted hotspots",
+      "status": "PASS",
+      "detail": "risk list returned"
+    },
+    {
+      "check": "Model status",
+      "status": "PASS",
+      "detail": "model status returned"
+    },
+    {
+      "check": "System status",
+      "status": "PASS",
+      "detail": "system status returned"
+    },
+    {
+      "check": "Frontend build",
+      "status": "SKIPPED",
+      "detail": "bun is not installed"
+    }
+  ],
+  "overall_status": "PASS"
+}

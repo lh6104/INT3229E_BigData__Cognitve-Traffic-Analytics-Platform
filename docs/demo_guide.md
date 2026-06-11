@@ -114,6 +114,7 @@ GET /traffic/predict/{segment_id}?horizon=15m
 GET /traffic/predict/{segment_id}?horizon=60m
 GET /hotspots/predicted?city=hanoi&horizon=15m
 GET /traffic/model/status?load_models=true
+GET /system/status
 ```
 
 ## Quick Smoke Commands
@@ -126,10 +127,33 @@ curl "http://localhost:8000/traffic/predict/HN_005?horizon=15m"
 curl "http://localhost:8000/traffic/predict/HN_005?horizon=60m"
 curl "http://localhost:8000/hotspots/predicted?city=hanoi&horizon=15m"
 curl "http://localhost:8000/traffic/model/status?load_models=true"
+curl "http://localhost:8000/system/status"
+```
+
+## Demo Evidence Commands
+
+Run smoke checks and write reproducibility evidence:
+
+```bash
+make demo-check
+```
+
+Run endpoint benchmark evidence:
+
+```bash
+make benchmark-demo
+```
+
+Run minimal Kafka evidence if Kafka is already running:
+
+```bash
+make streaming-mini-demo
 ```
 
 ## Presenter Notes
 
 - The demo is local-first and reproducible with Docker Python 3.11.
-- The LightGBM model is real and loaded from local artifacts, but some model inputs are filled because the current Gold data does not contain every training feature.
+- The forecast model name and artifact should be read from `/traffic/model/status` or the Forecast API response. Do not hard-code the model family in the presentation.
+- Some model inputs are filled because the current Gold data does not contain every training feature.
 - The current Hanoi coverage is suitable for a capstone prototype demo, not a full-city operational deployment.
+- `/hotspots/predicted` is prototype explainable risk scoring, not a production risk engine.

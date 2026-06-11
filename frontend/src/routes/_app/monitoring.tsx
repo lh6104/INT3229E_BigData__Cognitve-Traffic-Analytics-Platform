@@ -1,118 +1,231 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
-import { Activity, Database, Zap, AlertTriangle, CheckCircle2 } from "lucide-react";
+import useSWR from "swr";
+import { Activity, AlertTriangle, CheckCircle2, Database, Gauge, Zap } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useEffect, useState } from "react";
+import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
+import { apiGet } from "@/lib/api/client";
 
 export const Route = createFileRoute("/_app/monitoring")({
   component: MonitoringPage,
 });
 
-const ingest = Array.from({ length: 24 }, (_, i) => ({
-  t: `${i}:00`,
-  records: 8400 + Math.sin(i / 3) * 1200 + (i > 7 && i < 10 ? 1800 : 0) + (i > 16 && i < 20 ? 2100 : 0),
-}));
+type PipeStatus = "healthy" | "degraded" | "unhealthy";
 
-const latency = Array.from({ length: 18 }, (_, i) => ({
-  t: `${i * 5}m`,
-  p50: 120 + Math.sin(i / 2) * 25,
-  p95: 220 + Math.sin(i / 2 + 1) * 60,
-}));
+type PipelineStatus = {
+  component: string;
+  status: PipeStatus;
+  lag_messages: number;
+  last_update: string;
+  details: Record<string, unknown>;
+};
 
-type PipeStatus = "healthy" | "warning" | "error";
+type ModelMetric = {
+  horizon_minutes: number;
+  mae: number;
+  rmse: number;
+  r2_score: number;
+  rows: number;
+  feature_count: number;
+  artifact: string;
+};
+
+type MonitoringModel = {
+  ready: boolean;
+  model_dir: string;
+  models: ModelMetric[];
+  data_quality: {
+    segments: number;
+    record_count: number;
+    missing_bucket_ratio: number | null;
+    correct_interval_ratio: number | null;
+    train_candidate_15m: number;
+    train_candidate_60m: number;
+    freshness_status: PipeStatus;
+    interval_status: PipeStatus;
+  };
+};
+
+type DashboardTrend = {
+  timestamp: string;
+  avg_speed: number;
+  avg_jam_factor: number;
+};
+
+type DashboardTrends = {
+  points: DashboardTrend[];
+  available_points: number;
+  max_timestamp?: string | null;
+};
+
+type DashboardSummary = {
+  monitored_segments: number;
+  active_alerts: number;
+  avg_speed: number | null;
+  avg_jam_factor: number | null;
+  latest_timestamp?: string | null;
+};
+
+type SystemStatus = {
+  api: {
+    status: string;
+    uptime_seconds: number;
+    generated_at: string;
+  };
+  data: {
+    status: string;
+    gold_row_count: number;
+    segment_count: number;
+    latest_data_timestamp?: string | null;
+    data_freshness_minutes?: number | null;
+  };
+  model: {
+    loaded: boolean;
+    ready: boolean;
+    model_name?: string | null;
+    model_family?: string | null;
+    required_feature_count?: number | null;
+    average_feature_coverage_ratio?: number | null;
+    feature_coverage_status: string;
+  };
+  performance: {
+    last_benchmark_at?: string | null;
+    forecast_p95_ms?: number | null;
+    dashboard_summary_p95_ms?: number | null;
+    predicted_hotspots_p95_ms?: number | null;
+    status: string;
+  };
+  streaming: {
+    kafka_enabled: boolean;
+    status: string;
+    last_demo_at?: string | null;
+  };
+};
 
 function StatusDot({ status, pulse }: { status: PipeStatus; pulse?: boolean }) {
   const color =
-    status === "healthy" ? "bg-success" : status === "warning" ? "bg-warning" : "bg-destructive";
+    status === "healthy" ? "bg-success" : status === "degraded" ? "bg-warning" : "bg-destructive";
   return (
     <span className="relative inline-flex h-2 w-2">
-      {pulse && (
-        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${color}`} />
-      )}
+      {pulse && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${color}`} />}
       <span className={`relative inline-flex h-2 w-2 rounded-full ${color}`} />
     </span>
   );
 }
 
+function formatCount(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+  return String(Math.round(value));
+}
+
+function formatPercent(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : "n/a";
+}
+
+function formatAge(timestamp?: string | null) {
+  if (!timestamp) return "n/a";
+  const diffSeconds = Math.max(0, Math.round((Date.now() - new Date(timestamp).getTime()) / 1000));
+  if (diffSeconds < 60) return `${diffSeconds}s ago`;
+  if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`;
+  if (diffSeconds < 86400) return `${Math.round(diffSeconds / 3600)}h ago`;
+  return `${Math.round(diffSeconds / 86400)}d ago`;
+}
+
+function formatSeconds(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
+  if (value < 60) return `${Math.round(value)}s`;
+  if (value < 3600) return `${Math.round(value / 60)}m`;
+  return `${(value / 3600).toFixed(1)}h`;
+}
+
+function formatMs(value?: number | null) {
+  return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)} ms` : "not measured";
+}
+
 function MonitoringPage() {
-  const [loading, setLoading] = useState(true);
-  const [secondsAgo, setSecondsAgo] = useState(0);
+  const { data: system, error: systemError, isLoading: systemLoading } = useSWR<SystemStatus>(
+    "/system/status",
+    apiGet,
+    { refreshInterval: 30_000 }
+  );
+  const { data: pipeline, error: pipelineError, isLoading: pipelineLoading } = useSWR<PipelineStatus[]>(
+    "/monitoring/pipeline",
+    apiGet,
+    { refreshInterval: 30_000 }
+  );
+  const { data: model, error: modelError, isLoading: modelLoading } = useSWR<MonitoringModel>(
+    "/monitoring/model",
+    apiGet,
+    { refreshInterval: 60_000 }
+  );
+  const { data: trends, error: trendsError } = useSWR<DashboardTrends>(
+    "/dashboard/trends?city=hanoi&hours=168",
+    apiGet,
+    { refreshInterval: 60_000 }
+  );
+  const { data: summary, error: summaryError } = useSWR<DashboardSummary>(
+    "/dashboard/summary?city=hanoi",
+    apiGet,
+    { refreshInterval: 30_000 }
+  );
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 1500);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    const i = setInterval(() => setSecondsAgo((s) => s + 1), 1000);
-    return () => clearInterval(i);
-  }, []);
-
-  const kafkaLagMs = 84;
-  const sparkBatchS = 4.2;
-  const pipelineStatusFor = (ms: number, warn: number, err: number): PipeStatus =>
-    ms > err ? "error" : ms > warn ? "warning" : "healthy";
-
-  const pipelines: { name: string; v: string; status: PipeStatus; pulse?: boolean }[] = [
-    { name: "Kafka · traffic-stream", v: `Lag ${kafkaLagMs} ms`, status: pipelineStatusFor(kafkaLagMs, 500, 2000) },
-    { name: "Kafka · weather-stream", v: "Lag 112 ms", status: "healthy" },
-    { name: "Spark Structured Stream", v: `Batch ${sparkBatchS} s`, status: pipelineStatusFor(sparkBatchS * 1000, 10000, 30000) },
-    { name: "Feature Store", v: "Sync 18 s ago", status: "healthy" },
-    { name: "TomTom Flow API", v: "99.6% · 184ms", status: "healthy" },
-    { name: "OpenWeather API", v: "Retry x2", status: "error", pulse: true },
-  ];
-
+  const apiError = systemError || pipelineError || modelError || trendsError || summaryError;
+  const loading = systemLoading || pipelineLoading || modelLoading;
+  const unhealthy = (pipeline ?? []).filter((item) => item.status === "unhealthy").length;
+  const degraded = (pipeline ?? []).filter((item) => item.status === "degraded").length;
+  const latestTraffic = pipeline?.find((item) => item.component === "gold_traffic_features");
+  const quality = model?.data_quality;
+  const chartData = (trends?.points ?? []).map((point) => ({
+    t: new Date(point.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit" }),
+    avg_speed: point.avg_speed,
+    avg_jam_factor: point.avg_jam_factor,
+  }));
+  const latencyData = (model?.models ?? []).map((item) => ({
+    horizon: `${item.horizon_minutes}m`,
+    mae: item.mae,
+    rmse: item.rmse,
+  }));
 
   return (
-    <PlaceholderPage title="Monitoring" subtitle="Pipeline health, data quality, and model performance">
+    <PlaceholderPage title="Monitoring" subtitle="Local pipeline health, data quality, and forecast model readiness">
       <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
-          Demo static monitoring. These metrics are illustrative and are not connected to live infrastructure telemetry.
-        </div>
+        {apiError && (
+          <div className="col-span-12 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+            Monitoring API unavailable: {apiError.message}
+          </div>
+        )}
+
         <div className="col-span-12 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[
-            { l: "Records / hour", v: "9.4k", i: Database, tone: "primary" },
-            { l: "API success rate", v: "99.6%", i: CheckCircle2, tone: "success" },
-            { l: "Data delay", v: "12 s", i: Zap, tone: "primary" },
-            { l: "Active issues", v: "1", i: AlertTriangle, tone: "warning" },
-          ].map((s) => (
-            <div key={s.l} className="rounded-2xl bg-card p-5">
-              <div className="flex items-start justify-between">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.tone === "success" ? "bg-[oklch(0.93_0.07_155)] text-[oklch(0.4_0.15_155)]" : s.tone === "warning" ? "bg-[oklch(0.95_0.08_70)] text-[oklch(0.45_0.15_70)]" : "bg-primary-soft text-accent-foreground"}`}>
-                  <s.i className="h-5 w-5" />
-                </div>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Demo</span>
-              </div>
-              {loading ? (
-                <>
-                  <div className="mt-4 h-7 w-20 animate-pulse rounded-md bg-secondary" />
-                  <div className="mt-2 h-3 w-24 animate-pulse rounded-md bg-secondary" />
-                </>
-              ) : (
-                <div className="animate-fade-in">
-                  <div className="mt-4 text-2xl font-semibold">{s.v}</div>
-                  <div className="text-xs text-muted-foreground">{s.l}</div>
-                </div>
-              )}
-            </div>
-
-          ))}
+          <SummaryCard icon={Activity} label="API uptime" value={formatSeconds(system?.api.uptime_seconds)} detail={system?.api.status ?? "unknown"} tone={system?.api.status === "ok" ? "success" : "warning"} loading={loading} />
+          <SummaryCard icon={Database} label="Gold records" value={formatCount(system?.data.gold_row_count ?? quality?.record_count)} detail={`${formatCount(system?.data.segment_count ?? quality?.segments)} segments`} tone="primary" loading={loading} />
+          <SummaryCard icon={CheckCircle2} label="Model loaded" value={system?.model.loaded ? "Loaded" : "Not loaded"} detail={system?.model.model_name ?? `${model?.models.length ?? 0} horizons`} tone={system?.model.loaded || model?.ready ? "success" : "warning"} loading={loading} />
+          <SummaryCard icon={Zap} label="Data freshness" value={system?.data.latest_data_timestamp ? formatAge(system.data.latest_data_timestamp) : formatAge(latestTraffic?.last_update)} detail={system?.data.status ?? latestTraffic?.status ?? "unknown"} tone={(system?.data.status ?? latestTraffic?.status) === "ok" || latestTraffic?.status === "healthy" ? "success" : "warning"} loading={loading} />
         </div>
 
-        <div className="col-span-12 lg:col-span-8 rounded-3xl bg-card p-6">
+        <div className="col-span-12 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <QualityTile label="Feature coverage" value={formatPercent(system?.model.average_feature_coverage_ratio)} detail={system?.model.feature_coverage_status ?? "not measured"} />
+          <QualityTile label="Forecast p95" value={formatMs(system?.performance.forecast_p95_ms)} detail={system?.performance.status ?? "not measured"} />
+          <QualityTile label="Hotspots p95" value={formatMs(system?.performance.predicted_hotspots_p95_ms)} detail={system?.performance.last_benchmark_at ? `measured ${formatAge(system.performance.last_benchmark_at)}` : "not measured"} />
+          <QualityTile label="Streaming" value={system?.streaming.kafka_enabled ? "Enabled" : "Not enabled"} detail={system?.streaming.status ?? "not available"} />
+        </div>
+
+        <div className="col-span-12 rounded-3xl bg-card p-6 lg:col-span-8">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold">Ingestion Throughput</h3>
-              <p className="text-xs text-muted-foreground">Traffic + weather records · illustrative last 24h</p>
+              <h3 className="text-base font-semibold">Traffic Feature Trend</h3>
+              <p className="text-xs text-muted-foreground">Hourly average speed and jam factor from local Gold traffic features</p>
             </div>
-            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">Static demo</span>
+            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
+              {trends?.available_points ?? 0} points
+            </span>
           </div>
           <div className="mt-4 h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={ingest}>
+              <AreaChart data={chartData}>
                 <defs>
-                  <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0.4} />
+                  <linearGradient id="speedGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0.35} />
                     <stop offset="100%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -120,97 +233,149 @@ function MonitoringPage() {
                 <XAxis dataKey="t" stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ background: "white", border: "1px solid oklch(0.92 0.01 280)", borderRadius: 12, fontSize: 12 }} />
-                <Area type="monotone" dataKey="records" stroke="oklch(0.58 0.21 285)" strokeWidth={2.5} fill="url(#m1)" />
+                <Area type="monotone" dataKey="avg_speed" name="Avg speed" stroke="oklch(0.58 0.21 285)" strokeWidth={2.5} fill="url(#speedGradient)" />
+                <Area type="monotone" dataKey="avg_jam_factor" name="Avg jam" stroke="oklch(0.72 0.17 35)" strokeWidth={2} fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 rounded-3xl bg-card p-6">
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold">Pipeline Status</h3>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Demo
-            </span>
-          </div>
+        <div className="col-span-12 rounded-3xl bg-card p-6 lg:col-span-4">
+          <h3 className="text-base font-semibold">Pipeline Status</h3>
           <div className="mt-4 space-y-3 text-sm">
-            {pipelines.map((p) => (
-              <div key={p.name} className="flex items-center justify-between rounded-xl border border-border px-3 py-2.5">
-                <div className="flex items-center gap-2">
-                  <StatusDot status={p.status} pulse={p.pulse} />
-                  <span>{p.name}</span>
+            {(pipeline ?? []).map((item) => (
+              <div key={item.component} className="rounded-xl border border-border px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <StatusDot status={item.status} pulse={item.status === "unhealthy"} />
+                    <span className="truncate">{item.component.replaceAll("_", " ")}</span>
+                  </div>
+                  <span className={`shrink-0 text-[11px] capitalize ${item.status === "healthy" ? "text-muted-foreground" : item.status === "degraded" ? "text-[oklch(0.5_0.15_70)]" : "text-destructive"}`}>
+                    {item.status}
+                  </span>
                 </div>
-                <span
-                  className={`text-[11px] ${
-                    p.status === "healthy"
-                      ? "text-muted-foreground"
-                      : p.status === "warning"
-                      ? "text-[oklch(0.5_0.15_70)]"
-                      : "text-destructive"
-                  } ${p.pulse ? "animate-pulse rounded-full bg-destructive/10 px-2 py-0.5 font-medium" : ""}`}
-                >
-                  {p.v}
-                </span>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Updated {formatAge(item.last_update)}
+                </div>
               </div>
             ))}
-          </div>
-          <div className="mt-3 text-[11px] text-muted-foreground">
-            Demo clock refreshed {secondsAgo}s ago
+            {!pipeline?.length && (
+              <div className="rounded-xl bg-secondary px-3 py-2.5 text-sm text-muted-foreground">
+                {loading ? "Loading pipeline status..." : "No pipeline components returned."}
+              </div>
+            )}
+            <div className="rounded-xl border border-border px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <StatusDot status={unhealthy ? "unhealthy" : degraded ? "degraded" : "healthy"} />
+                  <span className="truncate">active issues</span>
+                </div>
+                <span className="shrink-0 text-[11px] text-muted-foreground">{unhealthy + degraded}</span>
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {unhealthy} unhealthy · {degraded} degraded
+              </div>
+            </div>
           </div>
         </div>
 
-
-        <div className="col-span-12 lg:col-span-7 rounded-3xl bg-card p-6">
+        <div className="col-span-12 rounded-3xl bg-card p-6 lg:col-span-7">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold">Prediction Latency</h3>
-              <p className="text-xs text-muted-foreground">Illustrative p50 / p95 over last 90 min (ms)</p>
+              <h3 className="text-base font-semibold">Forecast Model Error</h3>
+              <p className="text-xs text-muted-foreground">Metrics from local model artifact training summary</p>
             </div>
             <div className="flex gap-2 text-xs">
-              <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> p50</span>
-              <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5"><span className="h-2 w-2 rounded-full bg-warning" /> p95</span>
+              <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> MAE</span>
+              <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5"><span className="h-2 w-2 rounded-full bg-warning" /> RMSE</span>
             </div>
           </div>
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={latency}>
+              <BarChart data={latencyData}>
                 <CartesianGrid stroke="oklch(0.92 0.01 280)" vertical={false} />
-                <XAxis dataKey="t" stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="horizon" stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ background: "white", border: "1px solid oklch(0.92 0.01 280)", borderRadius: 12, fontSize: 12 }} />
-                <Bar dataKey="p50" fill="oklch(0.58 0.21 285)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="p95" fill="oklch(0.78 0.16 70)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="mae" fill="oklch(0.58 0.21 285)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rmse" fill="oklch(0.78 0.16 70)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-5 rounded-3xl bg-card p-6">
+        <div className="col-span-12 rounded-3xl bg-card p-6 lg:col-span-5">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Model & Data Quality</h3>
-            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+            <Gauge className="h-4 w-4 text-primary" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            {[
-              { l: "MAE", v: "3.21", s: "− 0.12 vs last week" },
-              { l: "RMSE", v: "5.07", s: "− 0.08 vs last week" },
-              { l: "Drift score", v: "0.14", s: "Stable" },
-              { l: "Missing values", v: "0.42%", s: "Threshold 1.0%" },
-              { l: "Duplicate rate", v: "0.08%", s: "Threshold 0.5%" },
-              { l: "Invalid coords", v: "12", s: "in last 1h" },
-            ].map((m) => (
-              <div key={m.l} className="rounded-2xl border border-border p-3">
-                <div className="text-[11px] text-muted-foreground">{m.l}</div>
-                <div className="mt-1 text-lg font-semibold">{m.v}</div>
-                <div className="mt-1 text-[10px] text-muted-foreground">{m.s}</div>
-              </div>
+            {(model?.models ?? []).map((item) => (
+              <QualityTile key={item.horizon_minutes} label={`${item.horizon_minutes}m MAE`} value={item.mae.toFixed(2)} detail={`${formatCount(item.rows)} rows · ${item.feature_count} features`} />
             ))}
+            <QualityTile label="Missing buckets" value={formatPercent(quality?.missing_bucket_ratio)} detail={quality?.freshness_status ?? "unknown"} />
+            <QualityTile label="5m interval OK" value={formatPercent(quality?.correct_interval_ratio)} detail={quality?.interval_status ?? "unknown"} />
+            <QualityTile label="15m candidates" value={formatCount(quality?.train_candidate_15m)} detail="train-ready segments" />
+            <QualityTile label="60m candidates" value={formatCount(quality?.train_candidate_60m)} detail="train-ready segments" />
           </div>
-          <button className="mt-4 w-full rounded-2xl bg-primary-soft py-3 text-sm font-medium text-accent-foreground">
-            <Activity className="mr-2 inline h-4 w-4" /> Demo retrain action
-          </button>
+          <div className="mt-4 rounded-2xl bg-primary-soft px-4 py-3 text-xs text-accent-foreground">
+            Model directory: <span className="font-mono">{model?.model_dir ?? "n/a"}</span>
+          </div>
         </div>
       </div>
     </PlaceholderPage>
+  );
+}
+
+function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone,
+  loading,
+}: {
+  icon: typeof Database;
+  label: string;
+  value: string;
+  detail: string;
+  tone: "primary" | "success" | "warning";
+  loading: boolean;
+}) {
+  const iconClass =
+    tone === "success"
+      ? "bg-[oklch(0.93_0.07_155)] text-[oklch(0.4_0.15_155)]"
+      : tone === "warning"
+        ? "bg-[oklch(0.95_0.08_70)] text-[oklch(0.45_0.15_70)]"
+        : "bg-primary-soft text-accent-foreground";
+  return (
+    <div className="rounded-2xl bg-card p-5">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconClass}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+      {loading ? (
+        <>
+          <div className="mt-4 h-7 w-20 animate-pulse rounded-md bg-secondary" />
+          <div className="mt-2 h-3 w-24 animate-pulse rounded-md bg-secondary" />
+        </>
+      ) : (
+        <div>
+          <div className="mt-4 truncate text-2xl font-semibold">{value}</div>
+          <div className="truncate text-xs text-muted-foreground">{label} · {detail}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QualityTile({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-2xl border border-border p-3">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-semibold">{value}</div>
+      <div className="mt-1 truncate text-[10px] text-muted-foreground">{detail}</div>
+    </div>
   );
 }
