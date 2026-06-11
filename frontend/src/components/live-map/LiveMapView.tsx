@@ -29,7 +29,7 @@ type Hotspot = {
   label: string;
   center_lat: number;
   center_lon: number;
-  severity: "Critical" | "High" | "Medium";
+  severity: "Critical" | "High" | "Medium" | "Low";
   segment_count: number;
   avg_speed: number;
   city: City;
@@ -48,6 +48,20 @@ type SegmentFeatureCollection = {
       city: "hanoi" | "hcmc";
     };
   }>;
+};
+
+type ApiHotspot = {
+  hotspot_id: string;
+  cluster_id: number;
+  city: "hanoi" | "hcmc";
+  center_lat: number;
+  center_lon: number;
+  radius_km: number;
+  num_segments: number;
+  avg_congestion: number;
+  avg_jam_factor: number;
+  severity: "critical" | "high" | "medium" | "low";
+  detected_at: string;
 };
 
 const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
@@ -145,7 +159,15 @@ const SEVERITY_COLOR: Record<Hotspot["severity"], string> = {
   Critical: "#ef4444",
   High: "#f97316",
   Medium: "#eab308",
+  Low: "#22c55e",
 };
+
+function severityLabel(severity: ApiHotspot["severity"]): Hotspot["severity"] {
+  if (severity === "critical") return "Critical";
+  if (severity === "high") return "High";
+  if (severity === "medium") return "Medium";
+  return "Low";
+}
 
 function FlyTo({ city }: { city: City }) {
   const map = useMap();
@@ -180,9 +202,27 @@ export function LiveMapView({
   const { data: segmentGeojson, error: segmentError, isLoading: segmentsLoading, mutate: reloadSegments } =
     useSWR<SegmentFeatureCollection>(`/segments/geojson?city=${apiCity}&refresh=${refreshKey}`, apiGet, {
       revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    });
+  const { data: hotspotData, error: hotspotError, isLoading: hotspotsLoading, mutate: reloadHotspots } =
+    useSWR<ApiHotspot[]>(`/hotspots?city=${apiCity}&refresh=${refreshKey}`, apiGet, {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
     });
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (segmentError) {
+      console.error("Live Map segments API unavailable", segmentError);
+    }
+  }, [segmentError]);
+
+  useEffect(() => {
+    if (hotspotError) {
+      console.error("Live Map hotspots API unavailable", hotspotError);
+    }
+  }, [hotspotError]);
 
   const apiSegments = useMemo<Segment[]>(() => {
     if (!segmentGeojson?.features?.length) return [];
@@ -201,14 +241,45 @@ export function LiveMapView({
     }));
   }, [segmentGeojson, city]);
 
+  const apiHotspots = useMemo<Hotspot[]>(() => {
+    if (!hotspotData?.length) return [];
+    return hotspotData.map((hotspot) => ({
+      cluster_id: hotspot.hotspot_id,
+      label: `Cluster ${hotspot.cluster_id}`,
+      center_lat: hotspot.center_lat,
+      center_lon: hotspot.center_lon,
+      severity: severityLabel(hotspot.severity),
+      segment_count: hotspot.num_segments,
+      avg_speed: Math.max(0, Math.round(50 - hotspot.avg_congestion)),
+      city: hotspot.city === "hanoi" ? "Hanoi" : "HCMC",
+    }));
+  }, [hotspotData]);
+
+  const segmentFallbackReason = segmentError
+    ? "API unavailable. Showing demo fallback data."
+    : !segmentsLoading && segmentGeojson && apiSegments.length === 0
+      ? "No live traffic segments returned. Showing demo fallback data."
+      : "";
+  const hotspotFallbackReason = hotspotError
+    ? "API unavailable. Showing demo fallback hotspots."
+    : !hotspotsLoading && hotspotData && apiHotspots.length === 0
+      ? "No live hotspots returned. Showing demo fallback hotspots."
+      : "";
+  const usingSegmentFallback = Boolean(segmentFallbackReason);
+  const usingHotspotFallback = Boolean(hotspotFallbackReason);
+  const dataSourceLabel = usingSegmentFallback || usingHotspotFallback ? "Demo fallback" : "API";
+
   const filteredSegments = useMemo(() => {
-    const source = apiSegments.length ? apiSegments : SEGMENTS;
+    const source = apiSegments.length ? apiSegments : usingSegmentFallback ? SEGMENTS : [];
     return source.filter((s) => s.city === city)
       .filter((s) => (roadType === "All" ? true : s.road_type === roadType))
       .filter((s) => (congestion === "All" ? true : congestionOf(s) === congestion));
-  }, [apiSegments, city, roadType, congestion, refreshKey]);
+  }, [apiSegments, city, roadType, congestion, usingSegmentFallback]);
 
-  const filteredHotspots = useMemo(() => HOTSPOTS.filter((h) => h.city === city), [city, refreshKey]);
+  const filteredHotspots = useMemo(() => {
+    const source = apiHotspots.length ? apiHotspots : usingHotspotFallback ? HOTSPOTS : [];
+    return source.filter((h) => h.city === city);
+  }, [apiHotspots, city, usingHotspotFallback]);
 
   const center = CITY_CENTER[city];
 
@@ -256,12 +327,20 @@ export function LiveMapView({
             onClick={() => {
               setRefreshKey((k) => k + 1);
               reloadSegments();
+              reloadHotspots();
             }}
             className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background"
           >
             <RefreshCw className="h-3 w-3" /> Refresh
           </button>
         </div>
+
+        {(segmentFallbackReason || hotspotFallbackReason) && (
+          <div className="mb-3 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800">
+            {segmentFallbackReason || hotspotFallbackReason}
+            {segmentFallbackReason && hotspotFallbackReason ? " Hotspots are also using demo fallback data." : ""}
+          </div>
+        )}
 
         <div className="relative h-[560px] overflow-hidden rounded-2xl">
           {mounted ? (
@@ -330,10 +409,18 @@ export function LiveMapView({
               <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full" style={{ background: CONG_COLOR.Slow }} /> Slow</span>
               <span className="flex items-center gap-1.5"><span className="h-2 w-6 rounded-full" style={{ background: CONG_COLOR.Congested }} /> Congested</span>
             </div>
+            <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+              Data source: <span className="font-semibold text-foreground">{dataSourceLabel}</span>
+              {(usingSegmentFallback || usingHotspotFallback) && (
+                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                  Demo fallback
+                </span>
+              )}
+            </div>
           </div>
-          {(segmentsLoading || segmentError) && (
+          {(segmentsLoading || hotspotsLoading) && !usingSegmentFallback && !usingHotspotFallback && (
             <div className="absolute right-4 top-4 z-[1000] rounded-2xl bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow backdrop-blur">
-              {segmentError ? segmentError.message : "Loading live segments..."}
+              Loading live map data...
             </div>
           )}
         </div>
@@ -353,6 +440,12 @@ export function LiveMapView({
               <div className="font-semibold text-foreground">Showing</div>
               <div>{filteredSegments.length} segments · {filteredHotspots.length} hotspots</div>
               <div className="mt-1">City: {city} · Road: {roadType} · Congestion: {congestion}</div>
+              <div className="mt-1">Data source: {dataSourceLabel}</div>
+              {(usingSegmentFallback || usingHotspotFallback) && (
+                <div className="mt-2 inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
+                  Demo fallback
+                </div>
+              )}
             </div>
           </div>
         )}

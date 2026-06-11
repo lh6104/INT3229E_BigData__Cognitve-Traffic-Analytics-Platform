@@ -133,7 +133,10 @@ function AlertsPage() {
             { l: "Resolved 24h", v: "73", i: CheckCircle2, tone: "bg-[oklch(0.93_0.07_155)] text-[oklch(0.4_0.15_155)]" },
           ].map((s) => (
             <div key={s.l} className="rounded-2xl bg-card p-5">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.tone}`}><s.i className="h-5 w-5" /></div>
+              <div className="flex items-start justify-between">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.tone}`}><s.i className="h-5 w-5" /></div>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Demo KPI</span>
+              </div>
               <div className="mt-4 text-2xl font-semibold">{s.v}</div>
               <div className="text-xs text-muted-foreground">{s.l}</div>
             </div>

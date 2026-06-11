@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Gauge,
   Map as MapIcon,
-  TrendingUp,
   Cpu,
   Zap,
   ArrowUpRight,
@@ -19,13 +18,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { apiGet } from "@/lib/api/client";
+import { useAppStore } from "@/lib/store/useAppStore";
 
-
-
-const trend = Array.from({ length: 24 }, (_, i) => ({
+const demoTrend = Array.from({ length: 24 }, (_, i) => ({
   hour: `${i}:00`,
   speed: 28 + Math.sin(i / 3) * 12 + (i > 7 && i < 10 ? -8 : 0) + (i > 16 && i < 20 ? -10 : 0),
   jam: 4 + Math.cos(i / 3) * 1.5 + (i > 7 && i < 10 ? 2 : 0) + (i > 16 && i < 20 ? 3 : 0),
@@ -40,6 +38,65 @@ const segments = [
   { name: "Sat", value: 41 },
   { name: "Sun", value: 29 },
 ];
+
+type DashboardSummary = {
+  city: string;
+  monitored_segments: number;
+  active_alerts: number;
+  free_flow_segments: number;
+  slow_segments: number;
+  congested_segments: number;
+  avg_speed: number | null;
+  avg_jam_factor: number | null;
+  latest_timestamp: string | null;
+  data_source: string;
+  is_demo: boolean;
+  message?: string | null;
+};
+
+type DashboardTrends = {
+  city: string;
+  hours: number;
+  points: Array<{
+    timestamp: string;
+    avg_speed: number;
+    avg_jam_factor: number;
+  }>;
+  data_source: string;
+  available_points: number;
+  min_timestamp: string | null;
+  max_timestamp: string | null;
+  is_demo: boolean;
+  message?: string | null;
+};
+
+const demoSummary: DashboardSummary = {
+  city: "hanoi",
+  monitored_segments: 2481,
+  active_alerts: 17,
+  free_flow_segments: 1842,
+  slow_segments: 412,
+  congested_segments: 227,
+  avg_speed: 34,
+  avg_jam_factor: 5.4,
+  latest_timestamp: null,
+  data_source: "demo_fallback",
+  is_demo: true,
+};
+
+const emptySummary: DashboardSummary = {
+  city: "hanoi",
+  monitored_segments: 0,
+  active_alerts: 0,
+  free_flow_segments: 0,
+  slow_segments: 0,
+  congested_segments: 0,
+  avg_speed: null,
+  avg_jam_factor: null,
+  latest_timestamp: null,
+  data_source: "gold_local",
+  is_demo: false,
+};
 
 function StatCard({
   icon: Icon,
@@ -75,10 +132,46 @@ function StatCard({
 }
 
 export function DashboardPage() {
+  const city = useAppStore((state) => state.selectedCity);
+  const { data: summary, error: summaryError, isLoading: summaryLoading } = useSWR<DashboardSummary>(
+    `/dashboard/summary?city=${city}`,
+    apiGet,
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  const { data: trends, error: trendsError, isLoading: trendsLoading } = useSWR<DashboardTrends>(
+    `/dashboard/trends?city=${city}&hours=24`,
+    apiGet,
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+
+  const usingDemoFallback = Boolean(summaryError || trendsError);
+  const summaryView = summaryError ? demoSummary : summary ?? { ...emptySummary, city };
+  const summarySourceLabel = summaryError ? "Demo fallback" : "API";
+  const trendSourceLabel = trendsError ? "Demo fallback" : "API";
+  const trendData = useMemo(() => {
+    if (trendsError) return demoTrend;
+    return (trends?.points ?? []).map((point) => ({
+      hour: new Date(point.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      speed: point.avg_speed,
+      jam: point.avg_jam_factor,
+    }));
+  }, [trends, trendsError]);
+  const hasLimitedCoverage = !usingDemoFallback && summaryView.monitored_segments > 0 && summaryView.monitored_segments < 50;
+
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* HERO */}
       <div className="col-span-12 xl:col-span-9">
+        {usingDemoFallback && (
+          <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
+            Dashboard API unavailable. Showing demo fallback. Failed endpoints: /dashboard/summary, /dashboard/trends.
+          </div>
+        )}
+        {!usingDemoFallback && (summary?.message || trends?.message || hasLimitedCoverage) && (
+          <div className="mb-4 rounded-2xl border border-primary/20 bg-primary-soft px-4 py-3 text-sm font-medium text-accent-foreground">
+            {summary?.message || trends?.message || "Limited local data coverage"}
+          </div>
+        )}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-[oklch(0.45_0.22_290)] p-8 text-primary-foreground">
           <div className="absolute -right-10 -top-10 h-60 w-60 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute right-20 top-10 text-white/20">
@@ -98,10 +191,33 @@ export function DashboardPage() {
 
         {/* metric strip */}
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={MapIcon} label="Monitored segments" value="2,481" delta="+ 124" />
-          <StatCard icon={AlertTriangle} label="Active alerts" value="17" delta="+ 3" tone="destructive" />
-          <StatCard icon={Gauge} label="Avg city speed" value="34 km/h" delta="− 2.1%" tone="warning" />
-          <StatCard icon={Activity} label="Avg jam factor" value="5.4" delta="+ 0.8" tone="success" />
+          <StatCard
+            icon={MapIcon}
+            label="Monitored segments"
+            value={summaryLoading && !summary ? "..." : summaryView.monitored_segments.toLocaleString()}
+            delta={summarySourceLabel}
+          />
+          <StatCard
+            icon={AlertTriangle}
+            label="Active alerts"
+            value={summaryLoading && !summary ? "..." : summaryView.active_alerts.toLocaleString()}
+            delta={summarySourceLabel}
+            tone="destructive"
+          />
+          <StatCard
+            icon={Gauge}
+            label="Avg city speed"
+            value={summaryLoading && !summary ? "..." : summaryView.avg_speed == null ? "N/A" : `${summaryView.avg_speed.toFixed(1)} km/h`}
+            delta={summarySourceLabel}
+            tone="warning"
+          />
+          <StatCard
+            icon={Activity}
+            label="Avg jam factor"
+            value={summaryLoading && !summary ? "..." : summaryView.avg_jam_factor == null ? "N/A" : summaryView.avg_jam_factor.toFixed(1)}
+            delta={summarySourceLabel}
+            tone="success"
+          />
         </div>
 
         {/* trend chart */}
@@ -109,7 +225,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">Traffic Trend</h3>
-              <p className="text-xs text-muted-foreground">Average speed & jam factor — last 24h</p>
+              <p className="text-xs text-muted-foreground">
+                Average speed & jam factor — last 24h · Data source: {trendSourceLabel}
+              </p>
             </div>
             <div className="flex gap-2 text-xs">
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5">
@@ -121,38 +239,48 @@ export function DashboardPage() {
             </div>
           </div>
           <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend}>
-                <defs>
-                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="oklch(0.92 0.01 280)" vertical={false} />
-                <XAxis dataKey="hour" stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "white",
-                    border: "1px solid oklch(0.92 0.01 280)",
-                    borderRadius: 12,
-                    fontSize: 12,
-                  }}
-                />
-                <Area type="monotone" dataKey="speed" stroke="oklch(0.58 0.21 285)" strokeWidth={2.5} fill="url(#g1)" />
-                <Area type="monotone" dataKey="jam" stroke="oklch(0.78 0.16 70)" strokeWidth={2} fill="transparent" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {trendsLoading && !trends ? (
+              <div className="flex h-full items-center justify-center rounded-2xl bg-secondary text-sm text-muted-foreground">
+                Loading dashboard trend...
+              </div>
+            ) : trendData.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData}>
+                  <defs>
+                    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="oklch(0.58 0.21 285)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="oklch(0.92 0.01 280)" vertical={false} />
+                  <XAxis dataKey="hour" stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="oklch(0.5 0.02 270)" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid oklch(0.92 0.01 280)",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Area type="monotone" dataKey="speed" stroke="oklch(0.58 0.21 285)" strokeWidth={2.5} fill="url(#g1)" />
+                  <Area type="monotone" dataKey="jam" stroke="oklch(0.78 0.16 70)" strokeWidth={2} fill="transparent" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-2xl bg-secondary text-sm text-muted-foreground">
+                No local trend data available.
+              </div>
+            )}
           </div>
         </div>
 
         {/* category cards row */}
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
           {[
-            { label: "Free Flow", count: "1,842 / 2,481", color: "success" },
-            { label: "Slow Traffic", count: "412 / 2,481", color: "warning" },
-            { label: "Congested", count: "227 / 2,481", color: "destructive" },
+            { label: "Free Flow", count: `${summaryView.free_flow_segments} / ${summaryView.monitored_segments}`, color: "success" },
+            { label: "Slow Traffic", count: `${summaryView.slow_segments} / ${summaryView.monitored_segments}`, color: "warning" },
+            { label: "Congested", count: `${summaryView.congested_segments} / ${summaryView.monitored_segments}`, color: "destructive" },
           ].map((c) => (
             <div key={c.label} className="flex items-center justify-between rounded-2xl bg-card p-5">
               <div className="flex items-center gap-3">
@@ -188,7 +316,7 @@ export function DashboardPage() {
         <div className="mt-4 rounded-3xl bg-card p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Recent Alerts</h3>
-            <a className="text-xs text-primary underline">See all</a>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
           </div>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
@@ -232,7 +360,7 @@ export function DashboardPage() {
         <div className="rounded-3xl bg-card p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">System Health</h3>
-            <span className="text-muted-foreground">⋮</span>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
           </div>
           <div className="mt-5 flex flex-col items-center">
             <div className="relative">
@@ -267,7 +395,10 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-6 rounded-2xl bg-secondary p-4">
-            <div className="mb-2 text-xs text-muted-foreground">Predictions / day</div>
+            <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Predictions / day</span>
+              <span className="font-semibold">Demo</span>
+            </div>
             <div className="h-32">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={segments}>
@@ -286,9 +417,7 @@ export function DashboardPage() {
         <div className="mt-4 rounded-3xl bg-card p-6">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Model Performance</h3>
-            <button className="flex h-7 w-7 items-center justify-center rounded-full border border-border">
-              <TrendingUp className="h-3.5 w-3.5" />
-            </button>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
           </div>
           <div className="mt-4 flex flex-col gap-3">
             {[
@@ -389,9 +518,12 @@ function LiveCorridorTracking() {
     <div className="rounded-3xl bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Live Corridor Tracking</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold">Live Corridor Tracking</h3>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Upstream chain for the most congested active segment · auto-refresh 60s
+            Deterministic upstream chain for demo review · auto-refresh 60s
             {isValidating && !isLoading ? " · refreshing…" : ""}
           </p>
         </div>

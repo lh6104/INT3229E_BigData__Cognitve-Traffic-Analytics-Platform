@@ -2,7 +2,7 @@
 
 Endpoints:
 - GET /traffic/current/{city} — Real-time traffic status (from Redis)
-- GET /traffic/predict/{segment_id}?horizon=15 — Speed forecast
+- GET /traffic/predict/{segment_id}?horizon=15m|60m — Demo speed forecast
 - GET /alerts/active — Active traffic alerts
 - GET /hotspots — Congestion hotspots from DBSCAN
 - GET /predictions/{id}/explain — SHAP explanation
@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 import uvicorn
 
-from api.routers import alerts, explain, hotspots, monitoring, routing, segments, settings, traffic
+from api.routers import alerts, dashboard, explain, hotspots, monitoring, routing, segments, settings, traffic
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,7 +31,18 @@ app = FastAPI(
 
 allowed_origins = os.getenv(
     "API_CORS_ORIGINS",
-    "http://localhost:3000,http://localhost:5173,http://localhost:8000",
+    ",".join(
+        [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+        ]
+    ),
 ).split(",")
 
 # CORS middleware for local frontend development.
@@ -114,6 +125,12 @@ app.include_router(
     routing.router,
     prefix="/routing",
     tags=["routing"],
+)
+
+app.include_router(
+    dashboard.router,
+    prefix="/dashboard",
+    tags=["dashboard"],
 )
 
 

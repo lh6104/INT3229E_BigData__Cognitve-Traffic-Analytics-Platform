@@ -17,11 +17,17 @@ const factors = [
 
 function ExplanationsPage() {
   return (
-    <PlaceholderPage title="Explanations" subtitle="Why the model predicted this congestion — feature attribution & SHAP">
+    <PlaceholderPage title="Explanations" subtitle="Illustrative feature attribution demo for congestion predictions">
       <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
+          Demo static page. Values are illustrative and are not currently fetched from the prediction API.
+        </div>
         <div className="col-span-12 lg:col-span-4 space-y-4">
           <div className="rounded-3xl bg-card p-6">
-            <div className="text-[11px] font-semibold tracking-widest text-muted-foreground">SELECTED PREDICTION</div>
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-semibold tracking-widest text-muted-foreground">SELECTED PREDICTION</div>
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+            </div>
             <div className="mt-3 flex items-start gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Brain className="h-5 w-5" /></div>
               <div>
@@ -38,7 +44,10 @@ function ExplanationsPage() {
           </div>
 
           <div className="rounded-3xl bg-card p-6">
-            <div className="text-sm font-semibold">Recent predictions</div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold">Recent predictions</div>
+              <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Static</span>
+            </div>
             <div className="mt-3 flex flex-col gap-2">
               {[
                 { id: "ALR-2481", loc: "Cau Giay", sel: true },
@@ -60,9 +69,9 @@ function ExplanationsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold">Top contributing factors</h3>
-                <p className="text-xs text-muted-foreground">SHAP values · contribution to predicted slow-down</p>
+                <p className="text-xs text-muted-foreground">Illustrative SHAP-style values · contribution to predicted slow-down</p>
               </div>
-              <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">Model v2024.11 · GBM-traffic</span>
+              <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">Static demo</span>
             </div>
             <div className="mt-5 space-y-3">
               {factors.map((f) => (
