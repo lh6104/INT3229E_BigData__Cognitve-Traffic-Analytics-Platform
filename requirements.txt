@@ -59,7 +59,8 @@ neo4j>=5.0.0,<6.0.0
 
 # ML / data science
 networkx>=3.0,<4.0
-scikit-learn>=1.4.0,<1.6.0
+scikit-learn>=1.6.1,<1.7.0
+narwhals>=1.0.0,<2.0.0
 lightgbm>=4.0.0,<5.0.0
 shap>=0.44.0,<0.47.0
 optuna>=3.0.0,<5.0.0

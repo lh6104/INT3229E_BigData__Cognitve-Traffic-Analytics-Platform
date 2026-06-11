@@ -180,16 +180,22 @@ function SettingsPage() {
         subtitle="Configure cities, alert thresholds, and data refresh intervals"
       />
       <div className="space-y-4">
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
+          Local demo settings. Changes are stored in this browser only and do not update backend configuration.
+        </div>
         {/* Cities & Coverage */}
         <section className="rounded-3xl bg-card p-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
-              <MapPin className="h-4 w-4" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
+                <MapPin className="h-4 w-4" />
+              </div>
+              <h2 className="text-base font-semibold">Cities & Coverage</h2>
             </div>
-            <h2 className="text-base font-semibold">Cities & Coverage</h2>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Local demo</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Toggle city monitoring on or off
+            Toggle city monitoring on or off for the local UI state
           </p>
           <div className="mt-4 space-y-3">
             {Object.entries(settings.cities).map(([name, city]) => (
@@ -225,14 +231,17 @@ function SettingsPage() {
 
         {/* Alert Thresholds */}
         <section className="rounded-3xl bg-card p-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
-              <Bell className="h-4 w-4" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
+                <Bell className="h-4 w-4" />
+              </div>
+              <h2 className="text-base font-semibold">Alert Thresholds</h2>
             </div>
-            <h2 className="text-base font-semibold">Alert Thresholds</h2>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Local demo</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Adjust severity trigger levels
+            Adjust severity trigger levels for the local UI state
           </p>
           <div className="mt-4 space-y-5">
             {thresholdMeta.map((t) => (
@@ -264,14 +273,17 @@ function SettingsPage() {
 
         {/* Data Refresh Intervals */}
         <section className="rounded-3xl bg-card p-6">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
-              <Clock className="h-4 w-4" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-accent-foreground">
+                <Clock className="h-4 w-4" />
+              </div>
+              <h2 className="text-base font-semibold">Data Refresh Intervals</h2>
             </div>
-            <h2 className="text-base font-semibold">Data Refresh Intervals</h2>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Local demo</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            How often each data stream is refreshed
+            How often each local UI data stream is refreshed
           </p>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {(Object.keys(intervalOptions) as (keyof RefreshIntervals)[]).map(

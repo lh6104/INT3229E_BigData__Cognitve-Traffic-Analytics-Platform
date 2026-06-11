@@ -37,3 +37,24 @@ def test_dashboard_trends_uses_local_data():
         assert "timestamp" in point
         assert point["avg_speed"] >= 0
         assert point["avg_jam_factor"] >= 0
+
+
+def test_dashboard_allows_frontend_8080_cors():
+    origin = "http://localhost:8080"
+
+    response = client.get(
+        "/dashboard/summary?city=hanoi",
+        headers={"Origin": origin},
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == origin
+
+    preflight = client.options(
+        "/dashboard/summary?city=hanoi",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == origin

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 const overview = [
+  { title: "Demo Flow", to: "/demo", icon: Sparkles },
   { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { title: "Live Map", to: "/live-map", icon: Map },
   { title: "Forecast", to: "/forecast", icon: TrendingUp },
@@ -21,14 +22,14 @@ const overview = [
 
 const operations = [
   { title: "Alerts", to: "/alerts", icon: Bell },
-  { title: "Explanations", to: "/explanations", icon: Brain },
-  { title: "Monitoring", to: "/monitoring", icon: Activity },
+  { title: "Explanations", to: "/explanations", icon: Brain, badge: "Demo" },
+  { title: "Monitoring", to: "/monitoring", icon: Activity, badge: "Demo" },
 ];
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  const NavItem = ({ to, title, icon: Icon }: { to: string; title: string; icon: typeof Bell }) => {
+  const NavItem = ({ to, title, icon: Icon, badge }: { to: string; title: string; icon: typeof Bell; badge?: string }) => {
     const active = pathname === to || (to !== "/" && pathname.startsWith(to));
     return (
       <Link
@@ -41,6 +42,11 @@ export function AppSidebar() {
       >
         <Icon className="h-[18px] w-[18px]" />
         <span>{title}</span>
+        {badge && (
+          <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            {badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -79,7 +85,7 @@ export function AppSidebar() {
         SETTINGS
       </div>
       <nav className="flex flex-col gap-1">
-        <NavItem to="/settings" title="Settings" icon={Settings} />
+        <NavItem to="/settings" title="Settings" icon={Settings} badge="Local" />
         <button className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10">
           <LogOut className="h-[18px] w-[18px]" />
           Logout
