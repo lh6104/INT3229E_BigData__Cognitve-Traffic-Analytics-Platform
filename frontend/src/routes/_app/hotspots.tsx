@@ -155,8 +155,11 @@ function HotspotsPage() {
             { l: "Avg cluster speed", v: "19 km/h", d: "− 9 km/h" },
           ].map((s) => (
             <div key={s.l} className="rounded-2xl bg-card p-5">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Flame className="h-3.5 w-3.5" /> {s.l}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Flame className="h-3.5 w-3.5" /> {s.l}
+                </div>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Demo KPI</span>
               </div>
               <div className="mt-3 text-2xl font-semibold">{s.v}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">{s.d}</div>
@@ -168,7 +171,7 @@ function HotspotsPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-base font-semibold">Hotspot Map</h3>
-              <p className="text-xs text-muted-foreground">Spatial distribution of active congestion clusters</p>
+              <p className="text-xs text-muted-foreground">Spatial distribution of active congestion clusters · Data source: API</p>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {(["hanoi", "hcmc"] as CityKey[]).map((c) => (
@@ -248,7 +251,7 @@ function HotspotsPage() {
         <div className="col-span-12 lg:col-span-5 rounded-3xl bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-base font-semibold">Active Clusters</h3>
-            <button className="flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] text-muted-foreground"><Layers className="h-3 w-3" /> Group view</button>
+            <span className="flex h-7 items-center gap-1.5 rounded-full border border-border px-3 text-[11px] text-muted-foreground"><Layers className="h-3 w-3" /> API data</span>
           </div>
           <div className="flex max-h-[420px] flex-col gap-3 overflow-y-auto pr-1">
             {visibleHotspots.map((h) => {

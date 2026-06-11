@@ -2,11 +2,12 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 import logging
 
 from api.services.local_data import DataUnavailableError, latest_by_segment, normalize_city, train_features, traffic_features
+from api.services.model_inference import ModelUnavailableError, model_status, normalize_horizon, predict_for_segment
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,28 @@ class SpeedForecast(BaseModel):
     baseline_p50: float
     baseline_p85: float
     timestamp: datetime
+
+
+class ModelPredictionResponse(BaseModel):
+    """Demo model prediction response."""
+    segment_id: str
+    horizon: str
+    predicted_speed: Optional[float]
+    current_speed: Optional[float]
+    current_jam_factor: Optional[float]
+    model_name: str
+    model_artifact: str
+    model_source: str
+    data_source: str
+    input_source: str
+    is_fallback: bool
+    required_feature_count: int
+    available_feature_count: int
+    filled_feature_count: int
+    feature_fill_strategy: Optional[str] = None
+    missing_features: List[str] = []
+    latest_timestamp: Optional[str] = None
+    warning: Optional[str] = None
 
 
 # Endpoints
@@ -90,51 +113,39 @@ def get_current_traffic(city: str):
     )
 
 
-@router.get("/predict/{segment_id}", response_model=SpeedForecast)
+@router.get("/model/status")
+def get_model_status(load_models: bool = Query(False, description="Attempt to load model artifacts")):
+    """Get demo model artifact readiness and metadata."""
+    return model_status(load_models=load_models)
+
+
+@router.get("/predict/{segment_id}", response_model=ModelPredictionResponse)
 def get_speed_forecast(
     segment_id: str,
-    horizon: int = Query(15, description="Forecast horizon in minutes (15, 60, or 240)")
+    horizon: str = Query("15m", description="Forecast horizon (15m or 60m)")
 ):
-    """Get speed forecast for a segment.
+    """Get demo model speed forecast for a segment.
 
     Args:
         segment_id: Traffic segment ID
-        horizon: Forecast horizon (15, 60, or 240 minutes)
+        horizon: Forecast horizon (15m or 60m)
 
     Returns:
-        Speed forecast with confidence interval
+        Speed forecast with model/fallback metadata
     """
-    if horizon not in [15, 60, 240]:
-        raise HTTPException(status_code=400, detail="Horizon must be 15, 60, or 240 minutes")
+    try:
+        normalize_horizon(horizon)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        df = train_features(60 if horizon == 60 else 15)
+        prediction = predict_for_segment(segment_id, horizon)
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except DataUnavailableError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    segment_rows = df[df["segment_id"].astype(str) == segment_id]
-    if segment_rows.empty:
-        raise HTTPException(status_code=404, detail=f"No local training rows found for segment '{segment_id}'")
-
-    latest = segment_rows.sort_values("timestamp").iloc[-1]
-    current_speed = float(latest.get("currentSpeed", 0))
-    if "target_speed" in latest:
-        predicted_speed = float(latest["target_speed"])
-    else:
-        predicted_speed = current_speed
-    baseline_p50 = float(latest.get("p50", latest.get("speed_rolling_avg_60m", current_speed)))
-    baseline_p85 = float(latest.get("p85", max(baseline_p50, current_speed)))
-
-    return SpeedForecast(
-        segment_id=segment_id,
-        city=str(latest.get("city", "unknown")),
-        horizon_minutes=horizon,
-        predicted_speed=round(predicted_speed, 2),
-        confidence=0.65,
-        baseline_p50=round(baseline_p50, 2),
-        baseline_p85=round(baseline_p85, 2),
-        timestamp=datetime.fromisoformat(str(latest["timestamp"])),
-    )
+    return ModelPredictionResponse(**prediction.__dict__)
 
 
 @router.get("/segments", response_model=List[TrafficSegment])
