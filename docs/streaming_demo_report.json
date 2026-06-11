@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-06-11T20:24:09.398416+00:00",
+  "bootstrap_servers": "localhost:9092",
+  "kafka_enabled": false,
+  "overall_status": "SKIPPED",
+  "steps": [
+    {
+      "step": "Kafka connection",
+      "status": "SKIPPED",
+      "evidence": "Kafka service not running or unreachable: NoBrokersAvailable"
+    }
+  ]
+}

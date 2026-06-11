@@ -1,0 +1,3 @@
+horizon,target,artifact,metadata,model_family,required_feature_count,test_MAE,test_RMSE,test_R2
+15m,speed,selected_model_15m_speed_lightgbm_main.joblib,selected_model_15m_speed_lightgbm_main.metadata.json,lightgbm,67,4.445599219450393,6.205304835785796,0.8879863671019561
+60m,speed,selected_model_60m_speed_lightgbm_main.joblib,selected_model_60m_speed_lightgbm_main.metadata.json,lightgbm,67,4.49179443598545,6.211078320720366,0.8880720571042647

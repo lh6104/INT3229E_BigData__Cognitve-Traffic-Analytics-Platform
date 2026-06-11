@@ -69,80 +69,6 @@ const CITY_CENTER: Record<City, { lat: number; lng: number; zoom: number }> = {
   HCMC: { lat: 10.7769, lng: 106.7009, zoom: 13 },
 };
 
-const SEGMENTS: Segment[] = [
-  {
-    segment_id: "SEG-HN-RR3-08493",
-    name: "Ring Road 3 — Thanh Xuan",
-    road_type: "Highway",
-    geometry: { type: "LineString", coordinates: [[105.806, 20.998], [105.820, 21.003], [105.836, 21.005]] },
-    currentSpeed: 14, freeFlowSpeed: 60, jamFactor: 8.6, confidence: 0.93, city: "Hanoi",
-    weather: { condition: "Heavy rain", temp: 24, visibilityKm: 1.8 },
-    updatedAt: new Date().toISOString(),
-    incident: "Lane closure reported — 1 of 3 lanes blocked",
-  },
-  {
-    segment_id: "SEG-HN-NTR-00112",
-    name: "Nguyen Trai",
-    road_type: "Arterial",
-    geometry: { type: "LineString", coordinates: [[105.812, 20.995], [105.820, 21.000], [105.829, 21.006]] },
-    currentSpeed: 22, freeFlowSpeed: 50, jamFactor: 6.1, confidence: 0.88, city: "Hanoi",
-    weather: { condition: "Light rain", temp: 25, visibilityKm: 4.2 },
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    segment_id: "SEG-HN-CG-00871",
-    name: "Cau Giay",
-    road_type: "Arterial",
-    geometry: { type: "LineString", coordinates: [[105.795, 21.028], [105.806, 21.032], [105.818, 21.035]] },
-    currentSpeed: 38, freeFlowSpeed: 50, jamFactor: 3.2, confidence: 0.91, city: "Hanoi",
-    weather: { condition: "Cloudy", temp: 26, visibilityKm: 8.0 },
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    segment_id: "SEG-HN-HK-00220",
-    name: "Hoan Kiem Loop",
-    road_type: "Local",
-    geometry: { type: "LineString", coordinates: [[105.851, 21.028], [105.854, 21.031], [105.857, 21.029], [105.855, 21.026]] },
-    currentSpeed: 48, freeFlowSpeed: 55, jamFactor: 1.4, confidence: 0.96, city: "Hanoi",
-    weather: { condition: "Clear", temp: 27, visibilityKm: 10 },
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    segment_id: "SEG-HN-TL-09931",
-    name: "Truong Chinh",
-    road_type: "Arterial",
-    geometry: { type: "LineString", coordinates: [[105.823, 20.998], [105.834, 21.002], [105.846, 21.005]] },
-    currentSpeed: 30, freeFlowSpeed: 50, jamFactor: 4.7, confidence: 0.86, city: "Hanoi",
-    weather: { condition: "Light rain", temp: 25, visibilityKm: 5 },
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    segment_id: "SEG-HCM-DBP-00045",
-    name: "Dien Bien Phu",
-    road_type: "Arterial",
-    geometry: { type: "LineString", coordinates: [[106.694, 10.776], [106.701, 10.779], [106.708, 10.781]] },
-    currentSpeed: 18, freeFlowSpeed: 50, jamFactor: 7.4, confidence: 0.9, city: "HCMC",
-    weather: { condition: "Hot", temp: 33, visibilityKm: 9 },
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    segment_id: "SEG-HCM-NVL-01122",
-    name: "Nguyen Van Linh",
-    road_type: "Highway",
-    geometry: { type: "LineString", coordinates: [[106.690, 10.740], [106.705, 10.745], [106.722, 10.748]] },
-    currentSpeed: 52, freeFlowSpeed: 70, jamFactor: 2.6, confidence: 0.94, city: "HCMC",
-    weather: { condition: "Clear", temp: 32, visibilityKm: 10 },
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-const HOTSPOTS: Hotspot[] = [
-  { cluster_id: "HS-HN-01", label: "Thanh Xuan Junction", center_lat: 21.0, center_lon: 105.82, severity: "Critical", segment_count: 12, avg_speed: 12, city: "Hanoi" },
-  { cluster_id: "HS-HN-02", label: "Cau Giay Corridor", center_lat: 21.032, center_lon: 105.806, severity: "Medium", segment_count: 5, avg_speed: 28, city: "Hanoi" },
-  { cluster_id: "HS-HN-03", label: "Truong Chinh", center_lat: 21.003, center_lon: 105.834, severity: "High", segment_count: 8, avg_speed: 22, city: "Hanoi" },
-  { cluster_id: "HS-HCM-01", label: "District 1 Core", center_lat: 10.779, center_lon: 106.701, severity: "High", segment_count: 9, avg_speed: 18, city: "HCMC" },
-];
-
 function congestionOf(s: Segment): Exclude<Congestion, "All"> {
   if (s.jamFactor >= 6) return "Congested";
   if (s.jamFactor >= 3) return "Slow";
@@ -255,31 +181,27 @@ export function LiveMapView({
     }));
   }, [hotspotData]);
 
-  const segmentFallbackReason = segmentError
-    ? "API unavailable. Showing demo fallback data."
+  const segmentStatusMessage = segmentError
+    ? "Segments API unavailable. No fallback data is shown."
     : !segmentsLoading && segmentGeojson && apiSegments.length === 0
-      ? "No live traffic segments returned. Showing demo fallback data."
+      ? "No traffic segments returned for this city."
       : "";
-  const hotspotFallbackReason = hotspotError
-    ? "API unavailable. Showing demo fallback hotspots."
+  const hotspotStatusMessage = hotspotError
+    ? "Hotspots API unavailable. No fallback hotspots are shown."
     : !hotspotsLoading && hotspotData && apiHotspots.length === 0
-      ? "No live hotspots returned. Showing demo fallback hotspots."
+      ? "No hotspots returned for this city."
       : "";
-  const usingSegmentFallback = Boolean(segmentFallbackReason);
-  const usingHotspotFallback = Boolean(hotspotFallbackReason);
-  const dataSourceLabel = usingSegmentFallback || usingHotspotFallback ? "Demo fallback" : "API";
+  const dataSourceLabel = segmentError || hotspotError ? "Unavailable" : "API";
 
   const filteredSegments = useMemo(() => {
-    const source = apiSegments.length ? apiSegments : usingSegmentFallback ? SEGMENTS : [];
-    return source.filter((s) => s.city === city)
+    return apiSegments.filter((s) => s.city === city)
       .filter((s) => (roadType === "All" ? true : s.road_type === roadType))
       .filter((s) => (congestion === "All" ? true : congestionOf(s) === congestion));
-  }, [apiSegments, city, roadType, congestion, usingSegmentFallback]);
+  }, [apiSegments, city, roadType, congestion]);
 
   const filteredHotspots = useMemo(() => {
-    const source = apiHotspots.length ? apiHotspots : usingHotspotFallback ? HOTSPOTS : [];
-    return source.filter((h) => h.city === city);
-  }, [apiHotspots, city, usingHotspotFallback]);
+    return apiHotspots.filter((h) => h.city === city);
+  }, [apiHotspots, city]);
 
   const center = CITY_CENTER[city];
 
@@ -335,10 +257,9 @@ export function LiveMapView({
           </button>
         </div>
 
-        {(segmentFallbackReason || hotspotFallbackReason) && (
-          <div className="mb-3 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-800">
-            {segmentFallbackReason || hotspotFallbackReason}
-            {segmentFallbackReason && hotspotFallbackReason ? " Hotspots are also using demo fallback data." : ""}
+        {(segmentStatusMessage || hotspotStatusMessage) && (
+          <div className="mb-3 rounded-2xl border border-border bg-secondary px-3 py-2 text-xs font-medium text-muted-foreground">
+            {[segmentStatusMessage, hotspotStatusMessage].filter(Boolean).join(" ")}
           </div>
         )}
 
@@ -411,14 +332,9 @@ export function LiveMapView({
             </div>
             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
               Data source: <span className="font-semibold text-foreground">{dataSourceLabel}</span>
-              {(usingSegmentFallback || usingHotspotFallback) && (
-                <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
-                  Demo fallback
-                </span>
-              )}
             </div>
           </div>
-          {(segmentsLoading || hotspotsLoading) && !usingSegmentFallback && !usingHotspotFallback && (
+          {(segmentsLoading || hotspotsLoading) && (
             <div className="absolute right-4 top-4 z-[1000] rounded-2xl bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow backdrop-blur">
               Loading live map data...
             </div>
@@ -441,11 +357,6 @@ export function LiveMapView({
               <div>{filteredSegments.length} segments · {filteredHotspots.length} hotspots</div>
               <div className="mt-1">City: {city} · Road: {roadType} · Congestion: {congestion}</div>
               <div className="mt-1">Data source: {dataSourceLabel}</div>
-              {(usingSegmentFallback || usingHotspotFallback) && (
-                <div className="mt-2 inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700">
-                  Demo fallback
-                </div>
-              )}
             </div>
           </div>
         )}

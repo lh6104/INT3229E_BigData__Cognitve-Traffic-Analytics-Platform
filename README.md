@@ -2,6 +2,8 @@
 
 Local-first big data prototype for urban traffic analytics and forecasting. The project ingests traffic, weather, and traffic-news data, builds Bronze/Silver/Gold datasets, exposes a FastAPI backend, and renders an operational React dashboard.
 
+Cognitive trong phạm vi project được hiểu là context-aware predictive decision support: kết hợp traffic/segment/weather/event context, model forecast, risk scoring và dashboard explanation. This is not a self-learning autonomous traffic-control AI.
+
 ## Architecture
 
 Data flow:
@@ -109,8 +111,10 @@ Example endpoints:
 - `GET /traffic/predict/HN_001?horizon=15`
 - `GET /alerts/active`
 - `GET /hotspots?city=hanoi`
+- `GET /hotspots/predicted?city=hanoi&horizon=15m`
 - `GET /segments/geojson?city=hanoi`
 - `GET /predictions/HN_001/explain`
+- `GET /system/status`
 
 ## Run with Docker
 
@@ -213,6 +217,16 @@ cd frontend
 bun run build
 ```
 
+Demo evidence:
+
+```bash
+make demo-check
+make benchmark-demo
+make streaming-mini-demo
+```
+
+`make streaming-mini-demo` writes a SKIPPED report when Kafka is not running. Performance reports only contain measured endpoint values; unavailable metrics are marked `NOT MEASURED`.
+
 Tests that require live external APIs or the full Docker stack should be kept as integration tests and skipped unless the needed services are available.
 
 ## Known Limitations
@@ -223,3 +237,5 @@ Tests that require live external APIs or the full Docker stack should be kept as
 - Compose Spark master/worker are placeholders, not a production Spark cluster image.
 - ML training still expects an Iceberg Gold table unless adapted to a local CSV training path.
 - Data coverage in the current raw snapshots has large time gaps for some segments.
+- `/hotspots/predicted` is prototype explainable risk scoring and not a calibrated production risk engine.
+- The reliable demo path is local/batch-oriented. Kafka/streaming is minimal evidence or target architecture unless the mini-demo report shows PASS.

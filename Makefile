@@ -1,4 +1,4 @@
-.PHONY: help up down logs restart clean demo test seed health gold gold-docker train-data news-bronze news-events ingest-raw-once ingest-raw-10m repair-env docker-build docker-test docker-api docker-shell docker-pipeline
+.PHONY: help up down logs restart clean demo test seed health gold gold-docker train-data news-bronze news-events ingest-raw-once ingest-raw-10m repair-env docker-build docker-test docker-api docker-shell docker-pipeline demo-check benchmark-demo streaming-mini-demo
 
 COMPOSE_FILE := docker-compose.yml
 COMPOSE_CMD := docker compose -f $(COMPOSE_FILE)
@@ -33,6 +33,9 @@ help:
 	@echo "  make docker-test  - Run Python tests in Docker"
 	@echo "  make docker-api   - Run FastAPI in Docker on :8000"
 	@echo "  make docker-shell - Open a shell in the Python dev container"
+	@echo "  make demo-check   - Run API/frontend smoke checks and write docs/demo_smoke_report.*"
+	@echo "  make benchmark-demo - Benchmark API endpoints and write docs/performance_report.*"
+	@echo "  make streaming-mini-demo - Produce/consume sample Kafka messages when Kafka is running"
 	@echo ""
 	@echo "Development:"
 	@echo "  make install     - Install Python dependencies"
@@ -142,6 +145,15 @@ docker-shell:
 docker-pipeline:
 	@echo "Building local Silver/Gold datasets in Python dev container..."
 	$(COMPOSE_CMD) run --build --rm python-pipeline
+
+demo-check:
+	$(PYTHON) scripts/demo_check.py
+
+benchmark-demo:
+	$(PYTHON) scripts/smoke_benchmark.py --base-url http://localhost:8000 --runs 20
+
+streaming-mini-demo:
+	$(PYTHON) scripts/streaming_mini_demo.py
 
 test:
 	@echo "Running Python baseline tests..."

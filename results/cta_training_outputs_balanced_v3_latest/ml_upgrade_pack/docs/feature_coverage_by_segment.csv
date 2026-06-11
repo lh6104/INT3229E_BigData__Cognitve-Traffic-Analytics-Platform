@@ -1,0 +1,3 @@
+task,horizon,segment_id,avg_filled_features,required_feature_count,avg_coverage_ratio,rows,prediction_reliability_level
+15m_speed,15m,HN_005,67.0,67,1.0,431,high
+60m_speed,60m,HN_005,67.0,67,1.0,428,high

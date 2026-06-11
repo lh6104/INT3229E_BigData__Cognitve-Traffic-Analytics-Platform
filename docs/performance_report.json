@@ -1,0 +1,139 @@
+{
+  "generated_at": "2026-06-11T20:43:06.788060+00:00",
+  "base_url": "http://localhost:8000",
+  "runs": 20,
+  "endpoints": [
+    {
+      "endpoint": "/health",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 0.56,
+      "p95_ms": 2.05,
+      "avg_ms": 1.65,
+      "payload_size_kb": 0.1,
+      "error": null
+    },
+    {
+      "endpoint": "/dashboard/summary?city=hanoi",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 22.28,
+      "p95_ms": 49.3,
+      "avg_ms": 38.39,
+      "payload_size_kb": 0.26,
+      "error": null
+    },
+    {
+      "endpoint": "/segments/geojson?city=hanoi",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 37.39,
+      "p95_ms": 77.86,
+      "avg_ms": 44.49,
+      "payload_size_kb": 476.4,
+      "error": null
+    },
+    {
+      "endpoint": "/traffic/segments?city=hanoi",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 26.27,
+      "p95_ms": 31.07,
+      "avg_ms": 25.9,
+      "payload_size_kb": 8.93,
+      "error": null
+    },
+    {
+      "endpoint": "/traffic/predict/HN_005?horizon=15m",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 28.14,
+      "p95_ms": 35.75,
+      "avg_ms": 28.51,
+      "payload_size_kb": 0.91,
+      "error": null
+    },
+    {
+      "endpoint": "/traffic/predict/HN_005?horizon=60m",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 26.28,
+      "p95_ms": 30.57,
+      "avg_ms": 23.76,
+      "payload_size_kb": 0.91,
+      "error": null
+    },
+    {
+      "endpoint": "/hotspots/predicted?city=hanoi&horizon=15m",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 1200.15,
+      "p95_ms": 1296.76,
+      "avg_ms": 1181.9,
+      "payload_size_kb": 47.57,
+      "error": null
+    },
+    {
+      "endpoint": "/traffic/model/status?load_models=true",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 3.93,
+      "p95_ms": 4.85,
+      "avg_ms": 4.24,
+      "payload_size_kb": 2.27,
+      "error": null
+    },
+    {
+      "endpoint": "/system/status",
+      "runs": 20,
+      "success_count": 20,
+      "success_rate": 1.0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 357.4,
+      "p95_ms": 409.33,
+      "avg_ms": 367.89,
+      "payload_size_kb": 1.26,
+      "error": null
+    }
+  ],
+  "extra_metrics": {
+    "api_memory_after_model_load": "NOT MEASURED",
+    "model_load_time": "NOT MEASURED",
+    "model_inference_time": "NOT MEASURED",
+    "frontend_build_time": "NOT MEASURED"
+  }
+}

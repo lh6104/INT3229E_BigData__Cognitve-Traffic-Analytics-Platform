@@ -17,11 +17,9 @@ import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
 import { Route as AppHotspotsRouteImport } from './routes/_app/hotspots'
 import { Route as AppForecastRouteImport } from './routes/_app/forecast'
 import { Route as AppExplanationsRouteImport } from './routes/_app/explanations'
-import { Route as AppDemoRouteImport } from './routes/_app/demo'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
 import { Route as ApiAlertsBulkAckRouteImport } from './routes/api/alerts/bulk-ack'
-import { Route as ApiSegmentsIdUpstreamRouteImport } from './routes/api/segments/$id/upstream'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -62,11 +60,6 @@ const AppExplanationsRoute = AppExplanationsRouteImport.update({
   path: '/explanations',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDemoRoute = AppDemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -82,17 +75,11 @@ const ApiAlertsBulkAckRoute = ApiAlertsBulkAckRouteImport.update({
   path: '/api/alerts/bulk-ack',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSegmentsIdUpstreamRoute = ApiSegmentsIdUpstreamRouteImport.update({
-  id: '/api/segments/$id/upstream',
-  path: '/api/segments/$id/upstream',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
-  '/demo': typeof AppDemoRoute
   '/explanations': typeof AppExplanationsRoute
   '/forecast': typeof AppForecastRoute
   '/hotspots': typeof AppHotspotsRoute
@@ -100,13 +87,11 @@ export interface FileRoutesByFullPath {
   '/monitoring': typeof AppMonitoringRoute
   '/settings': typeof AppSettingsRoute
   '/api/alerts/bulk-ack': typeof ApiAlertsBulkAckRoute
-  '/api/segments/$id/upstream': typeof ApiSegmentsIdUpstreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
-  '/demo': typeof AppDemoRoute
   '/explanations': typeof AppExplanationsRoute
   '/forecast': typeof AppForecastRoute
   '/hotspots': typeof AppHotspotsRoute
@@ -114,7 +99,6 @@ export interface FileRoutesByTo {
   '/monitoring': typeof AppMonitoringRoute
   '/settings': typeof AppSettingsRoute
   '/api/alerts/bulk-ack': typeof ApiAlertsBulkAckRoute
-  '/api/segments/$id/upstream': typeof ApiSegmentsIdUpstreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,7 +106,6 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/demo': typeof AppDemoRoute
   '/_app/explanations': typeof AppExplanationsRoute
   '/_app/forecast': typeof AppForecastRoute
   '/_app/hotspots': typeof AppHotspotsRoute
@@ -130,7 +113,6 @@ export interface FileRoutesById {
   '/_app/monitoring': typeof AppMonitoringRoute
   '/_app/settings': typeof AppSettingsRoute
   '/api/alerts/bulk-ack': typeof ApiAlertsBulkAckRoute
-  '/api/segments/$id/upstream': typeof ApiSegmentsIdUpstreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -138,7 +120,6 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/dashboard'
-    | '/demo'
     | '/explanations'
     | '/forecast'
     | '/hotspots'
@@ -146,13 +127,11 @@ export interface FileRouteTypes {
     | '/monitoring'
     | '/settings'
     | '/api/alerts/bulk-ack'
-    | '/api/segments/$id/upstream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/alerts'
     | '/dashboard'
-    | '/demo'
     | '/explanations'
     | '/forecast'
     | '/hotspots'
@@ -160,14 +139,12 @@ export interface FileRouteTypes {
     | '/monitoring'
     | '/settings'
     | '/api/alerts/bulk-ack'
-    | '/api/segments/$id/upstream'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/_app/alerts'
     | '/_app/dashboard'
-    | '/_app/demo'
     | '/_app/explanations'
     | '/_app/forecast'
     | '/_app/hotspots'
@@ -175,14 +152,12 @@ export interface FileRouteTypes {
     | '/_app/monitoring'
     | '/_app/settings'
     | '/api/alerts/bulk-ack'
-    | '/api/segments/$id/upstream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   ApiAlertsBulkAckRoute: typeof ApiAlertsBulkAckRoute
-  ApiSegmentsIdUpstreamRoute: typeof ApiSegmentsIdUpstreamRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -243,13 +218,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExplanationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/demo': {
-      id: '/_app/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof AppDemoRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -271,20 +239,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAlertsBulkAckRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/segments/$id/upstream': {
-      id: '/api/segments/$id/upstream'
-      path: '/api/segments/$id/upstream'
-      fullPath: '/api/segments/$id/upstream'
-      preLoaderRoute: typeof ApiSegmentsIdUpstreamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 interface AppRouteChildren {
   AppAlertsRoute: typeof AppAlertsRoute
   AppDashboardRoute: typeof AppDashboardRoute
-  AppDemoRoute: typeof AppDemoRoute
   AppExplanationsRoute: typeof AppExplanationsRoute
   AppForecastRoute: typeof AppForecastRoute
   AppHotspotsRoute: typeof AppHotspotsRoute
@@ -296,7 +256,6 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAlertsRoute: AppAlertsRoute,
   AppDashboardRoute: AppDashboardRoute,
-  AppDemoRoute: AppDemoRoute,
   AppExplanationsRoute: AppExplanationsRoute,
   AppForecastRoute: AppForecastRoute,
   AppHotspotsRoute: AppHotspotsRoute,
@@ -311,7 +270,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   ApiAlertsBulkAckRoute: ApiAlertsBulkAckRoute,
-  ApiSegmentsIdUpstreamRoute: ApiSegmentsIdUpstreamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
