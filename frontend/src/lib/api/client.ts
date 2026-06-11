@@ -1,4 +1,11 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+const DEFAULT_API_BASE_URL = "http://localhost:8000";
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+export const API_BASE_URL = (configuredApiBaseUrl || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+
+if (!configuredApiBaseUrl) {
+  console.info(`VITE_API_BASE_URL is not set; using ${DEFAULT_API_BASE_URL}`);
+}
 
 export async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`);
