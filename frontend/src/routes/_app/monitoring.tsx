@@ -66,6 +66,9 @@ function MonitoringPage() {
   return (
     <PlaceholderPage title="Monitoring" subtitle="Pipeline health, data quality, and model performance">
       <div className="grid grid-cols-12 gap-4">
+        <div className="col-span-12 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
+          Demo static monitoring. These metrics are illustrative and are not connected to live infrastructure telemetry.
+        </div>
         <div className="col-span-12 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             { l: "Records / hour", v: "9.4k", i: Database, tone: "primary" },
@@ -74,8 +77,11 @@ function MonitoringPage() {
             { l: "Active issues", v: "1", i: AlertTriangle, tone: "warning" },
           ].map((s) => (
             <div key={s.l} className="rounded-2xl bg-card p-5">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.tone === "success" ? "bg-[oklch(0.93_0.07_155)] text-[oklch(0.4_0.15_155)]" : s.tone === "warning" ? "bg-[oklch(0.95_0.08_70)] text-[oklch(0.45_0.15_70)]" : "bg-primary-soft text-accent-foreground"}`}>
-                <s.i className="h-5 w-5" />
+              <div className="flex items-start justify-between">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.tone === "success" ? "bg-[oklch(0.93_0.07_155)] text-[oklch(0.4_0.15_155)]" : s.tone === "warning" ? "bg-[oklch(0.95_0.08_70)] text-[oklch(0.45_0.15_70)]" : "bg-primary-soft text-accent-foreground"}`}>
+                  <s.i className="h-5 w-5" />
+                </div>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Demo</span>
               </div>
               {loading ? (
                 <>
@@ -97,9 +103,9 @@ function MonitoringPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">Ingestion Throughput</h3>
-              <p className="text-xs text-muted-foreground">Traffic + weather records · last 24h</p>
+              <p className="text-xs text-muted-foreground">Traffic + weather records · illustrative last 24h</p>
             </div>
-            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">Source: TomTom · OpenWeather</span>
+            <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">Static demo</span>
           </div>
           <div className="mt-4 h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -123,12 +129,8 @@ function MonitoringPage() {
         <div className="col-span-12 lg:col-span-4 rounded-3xl bg-card p-6">
           <div className="flex items-center gap-2">
             <h3 className="text-base font-semibold">Pipeline Status</h3>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(0.93_0.07_155)] px-2 py-0.5 text-[10px] font-medium text-[oklch(0.4_0.15_155)]">
-              <span className="relative inline-flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
-              </span>
-              Live
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Demo
             </span>
           </div>
           <div className="mt-4 space-y-3 text-sm">
@@ -153,7 +155,7 @@ function MonitoringPage() {
             ))}
           </div>
           <div className="mt-3 text-[11px] text-muted-foreground">
-            Last refreshed {secondsAgo}s ago
+            Demo clock refreshed {secondsAgo}s ago
           </div>
         </div>
 
@@ -162,7 +164,7 @@ function MonitoringPage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">Prediction Latency</h3>
-              <p className="text-xs text-muted-foreground">p50 / p95 over last 90 min (ms)</p>
+              <p className="text-xs text-muted-foreground">Illustrative p50 / p95 over last 90 min (ms)</p>
             </div>
             <div className="flex gap-2 text-xs">
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> p50</span>
@@ -184,7 +186,10 @@ function MonitoringPage() {
         </div>
 
         <div className="col-span-12 lg:col-span-5 rounded-3xl bg-card p-6">
-          <h3 className="text-base font-semibold">Model & Data Quality</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold">Model & Data Quality</h3>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+          </div>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {[
               { l: "MAE", v: "3.21", s: "− 0.12 vs last week" },
@@ -202,7 +207,7 @@ function MonitoringPage() {
             ))}
           </div>
           <button className="mt-4 w-full rounded-2xl bg-primary-soft py-3 text-sm font-medium text-accent-foreground">
-            <Activity className="mr-2 inline h-4 w-4" /> Trigger model retrain
+            <Activity className="mr-2 inline h-4 w-4" /> Demo retrain action
           </button>
         </div>
       </div>

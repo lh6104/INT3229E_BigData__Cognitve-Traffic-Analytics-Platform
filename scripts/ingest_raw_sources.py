@@ -100,6 +100,10 @@ def iso_now() -> str:
     return utc_now().isoformat()
 
 
+def sanitize_error(exc: Exception) -> str:
+    return re.sub(r"([?&]key=)[^&\\s)]+", r"\\1<redacted>", str(exc))
+
+
 def bucket_time(dt: datetime, bucket_minutes: int) -> datetime:
     minute = (dt.minute // bucket_minutes) * bucket_minutes
     return dt.replace(minute=minute, second=0, microsecond=0)
@@ -146,7 +150,7 @@ def last_coordinate(flow: dict[str, Any], fallback: dict[str, Any]) -> tuple[flo
     return float(fallback["lat"]), float(fallback["lon"])
 
 
-def load_traffic_points(path: Path | None, city: str, limit: int | None) -> list[dict[str, Any]]:
+def load_traffic_points(path: Path | None, city: str, offset: int, limit: int | None) -> tuple[list[dict[str, Any]], int]:
     if path:
         with path.open("r", encoding="utf-8") as handle:
             payload = yaml.safe_load(handle) or {}
@@ -157,9 +161,13 @@ def load_traffic_points(path: Path | None, city: str, limit: int | None) -> list
     city = city.lower().strip()
     if city != "all":
         points = [point for point in points if str(point.get("city", "")).lower() == city]
+    total_points = len(points)
+    if offset < 0:
+        raise ValueError("--offset must be >= 0")
+    points = points[offset:]
     if limit is not None:
         points = points[:limit]
-    return points
+    return points, total_points
 
 
 def traffic_request_plan(points: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -175,8 +183,25 @@ def traffic_request_plan(points: Iterable[dict[str, Any]]) -> list[dict[str, Any
     ]
 
 
-def collect_tomtom(raw_dir: Path, bucket_minutes: int, timeout: int, points: list[dict[str, Any]], dry_run: bool) -> int:
-    LOGGER.info("TomTom request plan: %s point requests", len(points))
+def collect_tomtom(
+    raw_dir: Path,
+    bucket_minutes: int,
+    timeout: int,
+    points: list[dict[str, Any]],
+    dry_run: bool,
+    total_points: int,
+    offset: int,
+    limit: int | None,
+) -> int:
+    LOGGER.info(
+        "TomTom request plan: total_configured=%s offset=%s limit=%s planned_requests=%s",
+        total_points,
+        offset,
+        limit if limit is not None else "none",
+        len(points),
+    )
+    if points:
+        LOGGER.info("Selected point range: first=%s last=%s", points[0]["segment_name"], points[-1]["segment_name"])
     if dry_run:
         LOGGER.info("Dry run enabled; TomTom API will not be called.")
         LOGGER.info("First planned requests: %s", traffic_request_plan(points[:5]))
@@ -188,6 +213,7 @@ def collect_tomtom(raw_dir: Path, bucket_minutes: int, timeout: int, points: lis
         return 0
 
     records = []
+    attempted_requests = 0
     now = utc_now()
     time_bucket = bucket_time(now, bucket_minutes).isoformat()
     seen_points = set()
@@ -196,6 +222,7 @@ def collect_tomtom(raw_dir: Path, bucket_minutes: int, timeout: int, points: lis
         if point_key in seen_points:
             continue
         seen_points.add(point_key)
+        attempted_requests += 1
         params = {
             "key": api_key,
             "point": f"{point['lat']},{point['lon']}",
@@ -245,7 +272,21 @@ def collect_tomtom(raw_dir: Path, bucket_minutes: int, timeout: int, points: lis
             }
             records.append(record)
         except Exception as exc:
-            LOGGER.warning("TomTom failed for %s: %s", point["segment_id"], exc)
+            LOGGER.warning("TomTom failed for %s: %s", point["segment_id"], sanitize_error(exc))
+    unique_segments = len({record["segment_id"] for record in records})
+    unique_road_names = len({record["segment_name"] for record in records})
+    geometry_records = sum(1 for record in records if record.get("geometry"))
+    missing_speed_or_jam = sum(1 for record in records if record.get("currentSpeed") is None or record.get("jamFactor") is None)
+    LOGGER.info(
+        "TomTom requests called: %s; records collected: %s; unique configured segments: %s; "
+        "unique road names: %s; geometry records: %s; missing speed/jamFactor: %s",
+        attempted_requests,
+        len(records),
+        unique_segments,
+        unique_road_names,
+        geometry_records,
+        missing_speed_or_jam,
+    )
     append_jsonl(raw_dir, "traffic", "traffic_live", records)
     return len(records)
 
@@ -296,7 +337,7 @@ def collect_weather(raw_dir: Path, bucket_minutes: int, timeout: int) -> int:
             }
             records.append(record)
         except Exception as exc:
-            LOGGER.warning("OpenWeatherMap failed for %s: %s", point["weather_cell_id"], exc)
+            LOGGER.warning("OpenWeatherMap failed for %s: %s", point["weather_cell_id"], sanitize_error(exc))
     append_jsonl(raw_dir, "weather", "weather_live", records)
     return len(records)
 
@@ -448,7 +489,7 @@ def run(args: argparse.Namespace) -> None:
     for env_file in args.env_file:
         load_env_file(env_file)
     sources = load_sources(args.sources)
-    traffic_points = load_traffic_points(args.traffic_points, args.city, args.limit)
+    traffic_points, total_traffic_points = load_traffic_points(args.traffic_points, args.city, args.offset, args.limit)
     deadline = time.monotonic() + args.duration_seconds
     cycle = 0
 
@@ -456,7 +497,16 @@ def run(args: argparse.Namespace) -> None:
         cycle += 1
         LOGGER.info("Starting raw ingest cycle %s", cycle)
         counts = {
-            "traffic": 0 if args.skip_traffic else collect_tomtom(raw_dir, args.bucket_minutes, args.timeout, traffic_points, args.dry_run),
+            "traffic": 0 if args.skip_traffic else collect_tomtom(
+                raw_dir,
+                args.bucket_minutes,
+                args.timeout,
+                traffic_points,
+                args.dry_run,
+                total_traffic_points,
+                args.offset,
+                args.limit,
+            ),
             "weather": 0 if args.skip_weather or args.dry_run else collect_weather(raw_dir, args.bucket_minutes, args.timeout),
             "rss_events": 0 if args.skip_events or args.dry_run else collect_rss(raw_dir, sources),
             "html_events": 0 if args.skip_events or args.dry_run else collect_html(raw_dir, sources, args.timeout),
@@ -479,6 +529,7 @@ def main() -> None:
     parser.add_argument("--once", action="store_true", help="Run one cycle only.")
     parser.add_argument("--traffic-points", type=Path, default=Path("config/hanoi_traffic_points.yaml"))
     parser.add_argument("--city", default="all", help="Traffic point city filter, e.g. hanoi, hcmc, all.")
+    parser.add_argument("--offset", type=int, default=0, help="Skip the first N traffic points after city filtering.")
     parser.add_argument("--limit", type=int, default=None, help="Maximum TomTom point requests per cycle.")
     parser.add_argument("--dry-run", action="store_true", help="Print request counts without calling external APIs.")
     parser.add_argument("--skip-traffic", action="store_true")

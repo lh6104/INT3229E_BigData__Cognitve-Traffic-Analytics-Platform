@@ -164,7 +164,7 @@ export function DashboardPage() {
       <div className="col-span-12 xl:col-span-9">
         {usingDemoFallback && (
           <div className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-800">
-            Dashboard API unavailable. Showing demo fallback.
+            Dashboard API unavailable. Showing demo fallback. Failed endpoints: /dashboard/summary, /dashboard/trends.
           </div>
         )}
         {!usingDemoFallback && (summary?.message || trends?.message || hasLimitedCoverage) && (
@@ -518,9 +518,12 @@ function LiveCorridorTracking() {
     <div className="rounded-3xl bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Live Corridor Tracking</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold">Live Corridor Tracking</h3>
+            <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">Demo</span>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Upstream chain for the most congested active segment · auto-refresh 60s
+            Deterministic upstream chain for demo review · auto-refresh 60s
             {isValidating && !isLoading ? " · refreshing…" : ""}
           </p>
         </div>

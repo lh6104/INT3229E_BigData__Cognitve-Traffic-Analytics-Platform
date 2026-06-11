@@ -17,6 +17,7 @@ import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
 import { Route as AppHotspotsRouteImport } from './routes/_app/hotspots'
 import { Route as AppForecastRouteImport } from './routes/_app/forecast'
 import { Route as AppExplanationsRouteImport } from './routes/_app/explanations'
+import { Route as AppDemoRouteImport } from './routes/_app/demo'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
 import { Route as ApiAlertsBulkAckRouteImport } from './routes/api/alerts/bulk-ack'
@@ -61,6 +62,11 @@ const AppExplanationsRoute = AppExplanationsRouteImport.update({
   path: '/explanations',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDemoRoute = AppDemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
+  '/demo': typeof AppDemoRoute
   '/explanations': typeof AppExplanationsRoute
   '/forecast': typeof AppForecastRoute
   '/hotspots': typeof AppHotspotsRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AppAlertsRoute
   '/dashboard': typeof AppDashboardRoute
+  '/demo': typeof AppDemoRoute
   '/explanations': typeof AppExplanationsRoute
   '/forecast': typeof AppForecastRoute
   '/hotspots': typeof AppHotspotsRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_app/alerts': typeof AppAlertsRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/demo': typeof AppDemoRoute
   '/_app/explanations': typeof AppExplanationsRoute
   '/_app/forecast': typeof AppForecastRoute
   '/_app/hotspots': typeof AppHotspotsRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/dashboard'
+    | '/demo'
     | '/explanations'
     | '/forecast'
     | '/hotspots'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/dashboard'
+    | '/demo'
     | '/explanations'
     | '/forecast'
     | '/hotspots'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_app/alerts'
     | '/_app/dashboard'
+    | '/_app/demo'
     | '/_app/explanations'
     | '/_app/forecast'
     | '/_app/hotspots'
@@ -231,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExplanationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/demo': {
+      id: '/_app/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof AppDemoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -265,6 +284,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAlertsRoute: typeof AppAlertsRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDemoRoute: typeof AppDemoRoute
   AppExplanationsRoute: typeof AppExplanationsRoute
   AppForecastRoute: typeof AppForecastRoute
   AppHotspotsRoute: typeof AppHotspotsRoute
@@ -276,6 +296,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAlertsRoute: AppAlertsRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDemoRoute: AppDemoRoute,
   AppExplanationsRoute: AppExplanationsRoute,
   AppForecastRoute: AppForecastRoute,
   AppHotspotsRoute: AppHotspotsRoute,

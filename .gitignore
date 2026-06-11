@@ -27,4 +27,7 @@ logs/
 tmp/
 temp/
 
+cta_training_outputs/
+result/cta_training_outputs_balanced_v3_latest/
+
 .DS_Store
