@@ -49,6 +49,7 @@ mlflow-artifacts/
 
 .DS_Store
 airflow.cfg
+/webserver_config.py
 
 PROJECT_A_TO_Z_ANALYSIS.md
 
