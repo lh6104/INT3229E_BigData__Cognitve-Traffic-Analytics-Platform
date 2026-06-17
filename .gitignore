@@ -32,3 +32,5 @@ result/cta_training_outputs_balanced_v3_latest/
 
 .DS_Store
 airflow.cfg
+
+PROJECT_A_TO_Z_ANALYSIS.md

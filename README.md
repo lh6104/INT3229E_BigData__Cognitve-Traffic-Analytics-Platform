@@ -1,209 +1,80 @@
+````md
 # Cognitive Traffic Analytics Platform
 
 ## 1. Tổng quan dự án
 
-**Cognitive Traffic Analytics Platform** là hệ thống phân tích giao thông thông minh, hỗ trợ theo dõi tình trạng giao thông, xem bản đồ lưu lượng, phát hiện điểm nóng ùn tắc, dự báo tốc độ di chuyển và giải thích kết quả dự đoán của mô hình.
+**Cognitive Traffic Analytics Platform** là hệ thống phân tích giao thông thông minh, hỗ trợ theo dõi, xử lý, dự báo và trực quan hóa tình trạng giao thông đô thị.
 
-Ứng dụng được thiết kế cho vai trò điều phối / giám sát giao thông. Người dùng có thể mở dashboard để xem tổng quan hệ thống, theo dõi các tuyến đường trên bản đồ, kiểm tra các khu vực đang ùn tắc, xem dự báo trong ngắn hạn và kiểm tra trạng thái vận hành của pipeline dữ liệu.
+Ứng dụng được thiết kế cho vai trò điều phối / giám sát giao thông. Người dùng có thể quan sát tổng quan hệ thống, xem bản đồ các đoạn đường, phát hiện điểm nóng ùn tắc, theo dõi cảnh báo, xem dự báo tốc độ trong ngắn hạn và kiểm tra trạng thái vận hành của pipeline dữ liệu.
 
 Các chức năng chính:
 
-- Theo dõi tổng quan tình trạng giao thông từ dữ liệu đã xử lý.
-- Hiển thị bản đồ các đoạn đường, trạng thái lưu thông và lớp phủ thời tiết.
+- Theo dõi tổng quan tình trạng giao thông trên dashboard.
+- Hiển thị bản đồ các đoạn đường đang được giám sát.
+- Phân loại trạng thái lưu thông: free flow, slow, congested, severe.
 - Dự báo tốc độ giao thông theo từng đoạn đường.
-- Phát hiện và hiển thị các cụm ùn tắc / điểm nóng giao thông.
-- Giải thích lý do mô hình đưa ra dự báo.
-- Theo dõi trạng thái dữ liệu, mô hình, API và pipeline.
-- Cung cấp API phục vụ dashboard và các tác vụ inference.
+- Phát hiện các cụm ùn tắc / hotspot theo khu vực.
+- Hiển thị cảnh báo giao thông và trạng thái xử lý.
+- Giải thích các yếu tố ảnh hưởng tới kết quả dự báo.
+- Theo dõi trạng thái API, dữ liệu, mô hình và pipeline.
 
 ---
 
-## 2. Giao diện ứng dụng
+## 2. Kiến trúc hệ thống
 
-### 2.1. Dashboard tổng quan
+Hệ thống được thiết kế theo kiến trúc nhiều thành phần, gồm pipeline xử lý dữ liệu, backend API, mô hình dự báo và dashboard giao thông.
 
-Dashboard tổng quan hiển thị nhanh trạng thái hiện tại của hệ thống: số đoạn đường đang theo dõi, cảnh báo đang hoạt động, tốc độ trung bình, số dòng dữ liệu Gold, trạng thái API, mô hình và độ trễ dự báo.
+![Kiến trúc hệ thống](images/system_architecture.png)
 
-![Dashboard Overview](images/dashboard_overview.png)
+*Sơ đồ kiến trúc tổng quan của hệ thống Cognitive Traffic Analytics Platform.*
 
-Các thông tin chính:
+### Các thành phần chính
 
-- Số lượng đoạn đường đang hiển thị.
-- Số cảnh báo đang hoạt động.
-- Tốc độ trung bình.
-- Số dòng dữ liệu Gold.
-- Trạng thái API và dữ liệu.
-- Hiệu năng mô hình và độ trễ dự báo.
-- Biểu đồ xu hướng tốc độ và jam factor.
+**Data Pipeline:**
 
----
+- **Raw Data**: Dữ liệu giao thông, thời tiết và sự kiện đầu vào.
+- **Bronze Layer**: Lưu dữ liệu ban đầu hoặc dữ liệu mới được chuẩn hóa bước đầu.
+- **Silver Layer**: Lưu dữ liệu đã làm sạch, chuẩn hóa thời gian và schema.
+- **Gold Layer**: Lưu dữ liệu đã tổng hợp, phục vụ dashboard, forecast và model training.
+- **Data Quality Check**: Kiểm tra dữ liệu trước khi sử dụng cho dashboard và mô hình.
+- **Airflow**: Điều phối pipeline xử lý dữ liệu ở chế độ local.
+- **Kafka**: Hỗ trợ bounded replay demo cho luồng dữ liệu streaming.
+- **Redis**: Lưu dữ liệu truy cập nhanh cho API nếu được cấu hình.
+- **Neo4j**: Hỗ trợ graph analytics cho các đoạn đường và quan hệ giữa chúng.
 
-### 2.2. Live Map
+**Application & Model Serving:**
 
-Màn hình **Live Map** hiển thị các đoạn đường trên bản đồ, phân loại theo mức độ lưu thông như free flow, slow, congested hoặc severe. Người dùng có thể lọc theo thành phố, mức độ ùn tắc, loại đường và lớp dữ liệu hiển thị.
-
-![Live Map](images/live_map.png)
-
-Các chức năng chính:
-
-- Xem các đoạn đường được giám sát trên bản đồ.
-- Bật / tắt lớp phủ thời tiết.
-- Lọc theo mức độ ùn tắc.
-- Xem danh sách các đoạn đường ùn tắc nhiều nhất.
-- Chọn một đoạn đường để kiểm tra thông tin chi tiết.
-- Mở dự báo cho đoạn đường được chọn.
+- **FastAPI**: Cung cấp API cho dashboard, forecast, monitoring và trạng thái hệ thống.
+- **React / Vite Dashboard**: Giao diện chính để người dùng quan sát dữ liệu giao thông.
+- **Scikit-learn / LightGBM**: Huấn luyện mô hình dự báo tốc độ giao thông.
+- **MLflow**: Theo dõi quá trình huấn luyện mô hình khi tracking server được bật.
+- **Docker Compose**: Khởi chạy các service local của hệ thống.
 
 ---
 
-### 2.3. Forecast
+## 3. Yêu cầu hệ thống
 
-Màn hình **Forecast** hiển thị dự báo tốc độ trong ngắn hạn cho một đoạn đường cụ thể. Giao diện cho phép chọn thành phố, chọn segment và xem tốc độ hiện tại, dự báo sau 15 phút, dự báo sau 60 phút và mức độ rủi ro ùn tắc.
+- **Docker Desktop** và **Docker Compose**.
+- **Python 3.9+**.
+- **Node.js 18+** để chạy frontend dashboard.
+- **Hệ điều hành**: Windows, macOS hoặc Linux.
+- **RAM khuyến nghị**: 8GB trở lên.
+- **Kết nối Internet** để tải Docker images và dependencies.
 
-![Traffic Forecast](images/forecast.png)
+Kiểm tra các công cụ cần thiết:
 
-Các thông tin chính:
-
-- Tốc độ hiện tại.
-- Dự báo tốc độ sau 15 phút.
-- Dự báo tốc độ sau 60 phút.
-- Mức độ rủi ro ùn tắc.
-- Biểu đồ so sánh tốc độ thực tế và tốc độ dự báo.
-- Thông tin ngữ cảnh của đoạn đường.
-- Mức độ đầy đủ của feature dùng cho dự báo.
-
----
-
-### 2.4. Hotspots
-
-Màn hình **Hotspots** hiển thị các cụm ùn tắc đang hoạt động. Hệ thống nhóm các đoạn đường có dấu hiệu ùn tắc thành cluster để người dùng dễ theo dõi theo khu vực.
-
-![Traffic Hotspots](images/hotspots.png)
-
-Các chức năng chính:
-
-- Hiển thị số lượng hotspot đang hoạt động.
-- Phân loại cụm ùn tắc theo mức độ nghiêm trọng.
-- Hiển thị bản đồ phân bố hotspot.
-- Xem danh sách các cluster đang hoạt động.
-- Kiểm tra số đoạn đường bị ảnh hưởng trong từng cluster.
-- Mở nhanh Live Map hoặc Forecast từ một cụm ùn tắc.
+```bash
+docker --version
+docker compose version
+python --version
+pip --version
+node --version
+npm --version
+````
 
 ---
 
-### 2.5. Explanations
-
-Màn hình **Explanations** giúp giải thích vì sao mô hình đưa ra một kết quả dự báo nhất định. Hệ thống hiển thị tốc độ dự báo, tốc độ hiện tại, mô hình được sử dụng và các feature có ảnh hưởng tới dự đoán.
-
-![Prediction Explanation](images/explanations.png)
-
-Các thông tin chính:
-
-- Kết quả dự báo của mô hình.
-- Tốc độ hiện tại của đoạn đường.
-- Mô hình đang được sử dụng.
-- Phân tích các feature ảnh hưởng tới kết quả.
-- Bối cảnh thời tiết nếu có.
-- Baseline context và prediction breakdown.
-
----
-
-### 2.6. Monitoring
-
-Màn hình **Monitoring** hiển thị trạng thái vận hành của ứng dụng, bao gồm trạng thái API, dữ liệu Gold, artifact mô hình, độ mới dữ liệu, trạng thái pipeline và các thành phần liên quan.
-
-![System Monitoring](images/monitoring.png)
-
-Các thông tin chính:
-
-- Trạng thái API.
-- Trạng thái dữ liệu Gold.
-- Trạng thái model artifact.
-- Độ mới dữ liệu.
-- Trạng thái pipeline.
-- Trạng thái data quality.
-- Thông tin benchmark và bounded replay nếu có.
-
----
-
-## 3. Kiến trúc hệ thống
-
-Hệ thống gồm ba phần chính: pipeline dữ liệu, backend API và dashboard giao thông.
-
-![System Architecture](images/system_architecture.png)
-
-Luồng xử lý tổng quát:
-
-```text
-Traffic / Weather / Event Data
-        ↓
-Bronze Data
-        ↓
-Silver Cleaned Data
-        ↓
-Gold Analytics Data
-        ↓
-Model Training / API Serving
-        ↓
-React Dashboard
-```
-
-### Data Pipeline
-
-Pipeline chịu trách nhiệm đọc dữ liệu đầu vào, làm sạch, chuẩn hóa và tạo dữ liệu phục vụ dashboard. Dữ liệu được tổ chức theo các tầng:
-
-- **Bronze**: dữ liệu ban đầu hoặc dữ liệu mới được chuẩn hóa bước đầu.
-- **Silver**: dữ liệu đã làm sạch, chuẩn hóa timestamp và schema.
-- **Gold**: dữ liệu đã tổng hợp, dùng cho dashboard, forecast và model training.
-
-### Backend API
-
-FastAPI cung cấp các endpoint để dashboard truy vấn dữ liệu, kiểm tra trạng thái hệ thống và lấy kết quả dự báo.
-
-Một số nhóm API chính:
-
-- System status.
-- Dashboard summary.
-- Traffic forecast.
-- Model status.
-- Graph status.
-- Evidence / monitoring data.
-
-### Frontend Dashboard
-
-Frontend là giao diện chính của ứng dụng, được xây dựng để người dùng theo dõi và thao tác với dữ liệu giao thông.
-
-Các màn hình chính:
-
-- Dashboard.
-- Live Map.
-- Forecast.
-- Hotspots.
-- Alerts.
-- Explanations.
-- Monitoring.
-- Settings.
-
----
-
-## 4. Công nghệ sử dụng
-
-| Nhóm | Công nghệ |
-|---|---|
-| Data Processing | Python, pandas, Parquet |
-| Orchestration | Apache Airflow |
-| Streaming Demo | Kafka |
-| Backend API | FastAPI |
-| Frontend | React / Vite |
-| Machine Learning | Scikit-learn, LightGBM |
-| Model Tracking | MLflow |
-| Graph Analytics | Neo4j |
-| Cache / Local Service | Redis |
-| Containerization | Docker, Docker Compose |
-| Reports | JSON / Markdown reports |
-
----
-
-## 5. Cấu trúc thư mục dự án
+## 4. Cấu trúc thư mục dự án
 
 ```text
 cognitive-traffic-analytics/
@@ -217,7 +88,7 @@ cognitive-traffic-analytics/
 │   ├── transformation/          # Xử lý raw -> silver -> gold
 │   └── quality/                 # Kiểm tra chất lượng dữ liệu
 ├── api/                         # FastAPI backend
-├── frontend/                    # React dashboard
+├── frontend/                    # React / Vite dashboard
 ├── ml/                          # Huấn luyện và theo dõi mô hình
 ├── models/                      # Model artifacts và metadata
 ├── graph/                       # Neo4j graph analytics
@@ -225,7 +96,7 @@ cognitive-traffic-analytics/
 ├── monitoring/                  # Cấu hình monitoring nếu có
 ├── reports/                     # Báo cáo pipeline, DQ, benchmark
 ├── docs/                        # Tài liệu chi tiết
-├── images/                      # Ảnh minh họa README
+├── images/                      # Hình ảnh sử dụng trong README
 ├── tests/                       # Unit test và smoke test
 ├── docker-compose.yml
 ├── Makefile
@@ -235,16 +106,18 @@ cognitive-traffic-analytics/
 
 ---
 
-## 6. Hướng dẫn cài đặt
+## 5. Hướng dẫn cài đặt và triển khai
 
-### 6.1. Clone repository
+### 5.1. Thiết lập ban đầu
+
+1. **Clone repository**
 
 ```bash
 git clone <repository-url>
 cd cognitive-traffic-analytics
 ```
 
-### 6.2. Tạo môi trường Python
+2. **Tạo môi trường Python**
 
 ```bash
 python -m venv .venv
@@ -259,13 +132,13 @@ Trên Windows PowerShell:
 pip install -r requirements.txt
 ```
 
-### 6.3. Tạo file môi trường
+3. **Tạo file cấu hình môi trường**
 
 ```bash
 cp .env.example .env
 ```
 
-Ví dụ cấu hình:
+Ví dụ các biến môi trường chính:
 
 ```env
 TOMTOM_API_KEY=your_tomtom_api_key
@@ -278,7 +151,7 @@ POSTGRES_DB=traffic_db
 MLFLOW_TRACKING_URI=http://localhost:5000
 ```
 
-### 6.4. Khởi động local stack
+4. **Khởi động local stack**
 
 ```bash
 make up
@@ -290,7 +163,7 @@ Hoặc:
 docker compose up -d
 ```
 
-Kiểm tra trạng thái container:
+5. **Kiểm tra trạng thái container**
 
 ```bash
 docker compose ps
@@ -298,25 +171,64 @@ docker compose ps
 
 ---
 
-## 7. Chạy ứng dụng
+### 5.2. Chuẩn bị dữ liệu và chạy pipeline
 
-### 7.1. Chạy pipeline dữ liệu
+Pipeline dữ liệu chịu trách nhiệm đọc dữ liệu đầu vào, làm sạch, chuẩn hóa và tạo dữ liệu phục vụ dashboard.
+
+Chạy pipeline:
 
 ```bash
 make pipeline
 ```
 
-Pipeline tạo dữ liệu phục vụ dashboard và mô hình:
+Luồng xử lý chính:
 
 ```text
-raw data -> bronze -> silver -> gold
+Traffic / Weather / Event Data
+        ↓
+Bronze Data
+        ↓
+Silver Cleaned Data
+        ↓
+Gold Analytics Data
+        ↓
+Dashboard / API / Model Training
 ```
 
-### 7.2. Kiểm tra chất lượng dữ liệu
+Dữ liệu sau xử lý được lưu tại:
+
+```text
+data/bronze/
+data/silver/
+data/gold/
+```
+
+Trong đó:
+
+* `bronze/`: lưu dữ liệu ban đầu.
+* `silver/`: lưu dữ liệu đã làm sạch.
+* `gold/`: lưu dữ liệu phục vụ dashboard, forecast và training.
+
+---
+
+### 5.3. Kiểm tra chất lượng dữ liệu
+
+Trước khi dữ liệu được sử dụng cho dashboard hoặc mô hình, hệ thống chạy bước kiểm tra chất lượng dữ liệu.
+
+Chạy kiểm tra:
 
 ```bash
 make dq-check
 ```
+
+Các nhóm kiểm tra chính:
+
+* Kiểm tra cột bắt buộc.
+* Kiểm tra dữ liệu thiếu.
+* Kiểm tra dữ liệu trùng lặp.
+* Kiểm tra thứ tự thời gian.
+* Kiểm tra các giá trị bất thường.
+* Kiểm tra dữ liệu đầu vào cho mô hình.
 
 Report chi tiết được lưu trong:
 
@@ -325,32 +237,45 @@ reports/
 docs/
 ```
 
-### 7.3. Huấn luyện mô hình
+---
 
-```bash
-make train
-```
+### 5.4. Khởi chạy backend API
 
-Thông tin model và artifact được lưu trong:
+FastAPI cung cấp API cho dashboard, forecast, monitoring và trạng thái hệ thống.
 
-```text
-models/
-reports/
-```
-
-### 7.4. Chạy backend API
+Chạy backend:
 
 ```bash
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Swagger UI:
+Truy cập Swagger UI:
 
 ```text
 http://localhost:8000/docs
 ```
 
-### 7.5. Chạy frontend dashboard
+Một số endpoint chính:
+
+```text
+/health
+/system/status
+/system/evidence
+/dashboard/summary?city=hanoi
+/traffic/predict/HN_005?horizon=15m
+/model/status
+/graph/status
+```
+
+![FastAPI Swagger](images/fastapi_swagger.png)
+
+---
+
+### 5.5. Khởi chạy frontend dashboard
+
+Dashboard là giao diện chính để người dùng quan sát và thao tác với hệ thống.
+
+Chạy frontend:
 
 ```bash
 cd frontend
@@ -364,40 +289,299 @@ Truy cập dashboard:
 http://localhost:5173
 ```
 
----
+![Dashboard Overview](images/dashboard_overview.png)
 
-## 8. Các màn hình chính
+Dashboard gồm các màn hình chính:
 
-| Màn hình | Chức năng |
-|---|---|
-| Dashboard | Tổng quan tình trạng giao thông, hệ thống, model và dữ liệu |
-| Live Map | Hiển thị bản đồ đoạn đường, lớp phủ thời tiết và trạng thái ùn tắc |
-| Forecast | Dự báo tốc độ theo segment và horizon |
-| Hotspots | Hiển thị các cụm ùn tắc đang hoạt động |
-| Alerts | Theo dõi và xử lý cảnh báo giao thông |
-| Explanations | Giải thích các yếu tố ảnh hưởng tới dự báo |
-| Monitoring | Theo dõi trạng thái API, dữ liệu, pipeline và model |
-| Settings | Cấu hình giao diện và tuỳ chọn ứng dụng |
+* **Dashboard**: tổng quan trạng thái giao thông, API, model và dữ liệu.
+* **Live Map**: bản đồ các đoạn đường đang được giám sát.
+* **Forecast**: dự báo tốc độ theo đoạn đường.
+* **Hotspots**: các cụm ùn tắc đang hoạt động.
+* **Alerts**: cảnh báo giao thông.
+* **Explanations**: giải thích kết quả dự báo.
+* **Monitoring**: trạng thái hệ thống, dữ liệu và pipeline.
+* **Settings**: cấu hình ứng dụng.
 
 ---
 
-## 9. Các service và URL quan trọng
+### 5.6. Live Map
 
-| Dịch vụ | URL | Ghi chú |
-|---|---|---|
-| Traffic Dashboard | `http://localhost:5173` | Giao diện chính |
-| FastAPI Docs | `http://localhost:8000/docs` | API documentation |
-| Airflow UI | `http://localhost:8088` | `admin / admin` |
-| Kafka Bootstrap | `localhost:9092` | Không có UI trong compose hiện tại |
-| Redis CLI | `docker exec -it big-data-redis-1 redis-cli` | Kiểm tra cache/local service |
-| Neo4j Browser | `http://localhost:7474` | `neo4j / password` |
-| MLflow UI | `http://localhost:5000` | Theo dõi experiment |
-| MinIO Console | `http://localhost:9001` | Optional lakehouse profile |
-| Trino UI | `http://localhost:8888` | Optional lakehouse profile |
+Màn hình **Live Map** hiển thị các đoạn đường trên bản đồ, phân loại theo trạng thái lưu thông. Người dùng có thể lọc theo thành phố, mức độ ùn tắc, loại đường và lớp dữ liệu hiển thị.
+
+![Live Map](images/live_map.png)
+
+Các chức năng chính:
+
+* Xem các đoạn đường đang được giám sát trên bản đồ.
+* Lọc theo mức độ ùn tắc.
+* Bật / tắt lớp phủ thời tiết.
+* Xem danh sách các đoạn đường ùn tắc nhiều nhất.
+* Chọn đoạn đường để kiểm tra thông tin chi tiết.
+* Mở nhanh màn hình dự báo cho đoạn đường được chọn.
 
 ---
 
-## 10. Các lệnh Makefile chính
+### 5.7. Forecast
+
+Màn hình **Forecast** hiển thị dự báo tốc độ trong ngắn hạn cho một đoạn đường cụ thể.
+
+![Traffic Forecast](images/forecast.png)
+
+Các thông tin chính:
+
+* Tốc độ hiện tại.
+* Dự báo sau 15 phút.
+* Dự báo sau 60 phút.
+* Mức độ rủi ro ùn tắc.
+* Biểu đồ tốc độ thực tế và tốc độ dự báo.
+* Thông tin ngữ cảnh của đoạn đường.
+* Mức độ đầy đủ của feature dùng cho dự báo.
+
+---
+
+### 5.8. Hotspots
+
+Màn hình **Hotspots** hiển thị các cụm ùn tắc đang hoạt động. Hệ thống nhóm các đoạn đường có dấu hiệu ùn tắc để người dùng dễ theo dõi theo khu vực.
+
+![Traffic Hotspots](images/hotspots.png)
+
+Các chức năng chính:
+
+* Hiển thị số lượng hotspot đang hoạt động.
+* Phân loại cụm ùn tắc theo mức độ nghiêm trọng.
+* Hiển thị bản đồ phân bố hotspot.
+* Xem danh sách các cluster đang hoạt động.
+* Kiểm tra số đoạn đường bị ảnh hưởng trong từng cluster.
+* Mở nhanh Live Map hoặc Forecast từ một cụm ùn tắc.
+
+---
+
+### 5.9. Explanations
+
+Màn hình **Explanations** giúp giải thích vì sao mô hình đưa ra một kết quả dự báo nhất định.
+
+![Prediction Explanation](images/explanations.png)
+
+Các thông tin chính:
+
+* Kết quả dự báo.
+* Tốc độ hiện tại.
+* Mô hình đang được sử dụng.
+* Các feature ảnh hưởng tới dự báo.
+* Bối cảnh thời tiết nếu có.
+* Baseline context và prediction breakdown.
+
+---
+
+### 5.10. Monitoring
+
+Màn hình **Monitoring** hiển thị trạng thái vận hành của ứng dụng.
+
+![System Monitoring](images/monitoring.png)
+
+Các thông tin chính:
+
+* Trạng thái API.
+* Trạng thái dữ liệu Gold.
+* Trạng thái model artifact.
+* Độ mới dữ liệu.
+* Trạng thái pipeline.
+* Trạng thái data quality.
+* Thông tin benchmark và bounded replay nếu có.
+
+---
+
+### 5.11. Luồng streaming với Kafka
+
+Kafka được dùng để mô phỏng luồng dữ liệu streaming / bounded replay trong hệ thống.
+
+Chạy streaming demo:
+
+```bash
+make stream-test
+```
+
+Luồng streaming:
+
+```text
+Data Source
+    ↓
+Kafka Producer
+    ↓
+Kafka Topic
+    ↓
+Kafka Consumer
+    ↓
+Processed Data
+```
+
+Kafka bootstrap:
+
+```text
+localhost:9092
+```
+
+---
+
+### 5.12. Điều phối pipeline bằng Airflow
+
+Airflow được dùng để quản lý và điều phối các bước xử lý dữ liệu.
+
+Truy cập Airflow UI:
+
+```text
+http://localhost:8088
+```
+
+Credentials:
+
+```text
+admin / admin
+```
+
+DAG chính:
+
+```text
+dag_production_like_local_pipeline
+```
+
+DAG thực hiện:
+
+* Chuẩn bị dữ liệu đầu vào.
+* Chạy pipeline xử lý dữ liệu.
+* Kiểm tra chất lượng dữ liệu.
+* Tạo dữ liệu phục vụ dashboard.
+* Ghi report sau khi chạy.
+
+![Airflow DAGs](images/airflow_dags.png)
+
+---
+
+### 5.13. Huấn luyện mô hình
+
+Dữ liệu sau xử lý được dùng để huấn luyện mô hình dự báo tốc độ hoặc tình trạng ùn tắc.
+
+Chạy huấn luyện:
+
+```bash
+make train
+```
+
+Hoặc:
+
+```bash
+python -m ml.training.train_cli
+```
+
+Mô hình sử dụng các nhóm thông tin:
+
+* Tốc độ hiện tại.
+* Tốc độ tự do.
+* Mức độ ùn tắc.
+* Thời gian trong ngày.
+* Ngày trong tuần.
+* Dữ liệu thời tiết.
+* Dữ liệu trễ theo thời gian.
+* Dữ liệu sự kiện liên quan.
+
+Thông tin chi tiết được lưu trong:
+
+```text
+models/
+reports/
+docs/
+```
+
+---
+
+### 5.14. Theo dõi mô hình bằng MLflow
+
+MLflow được dùng để theo dõi các lần huấn luyện mô hình.
+
+Khởi động MLflow:
+
+```bash
+docker compose -f docker-compose.model-registry.yaml up -d
+```
+
+Hoặc chạy kiểm tra:
+
+```bash
+make mlflow-test
+```
+
+Truy cập MLflow UI:
+
+```text
+http://localhost:5000
+```
+
+MLflow hiển thị:
+
+* Các lần chạy huấn luyện.
+* Tham số mô hình.
+* Metric đánh giá.
+* Artifact của mô hình.
+* Metadata của từng run.
+
+![MLflow Dashboard](images/mlflow_dashboard.png)
+
+---
+
+### 5.15. Graph Analytics với Neo4j
+
+Neo4j được dùng để lưu các đoạn đường và quan hệ giữa chúng dưới dạng graph.
+
+Chạy import graph:
+
+```bash
+make neo4j-import
+```
+
+Chạy kiểm tra graph:
+
+```bash
+make graph-test
+```
+
+Truy cập Neo4j Browser:
+
+```text
+http://localhost:7474
+```
+
+Credentials:
+
+```text
+neo4j / password
+```
+
+Neo4j hỗ trợ:
+
+* Lưu thông tin các đoạn đường.
+* Biểu diễn quan hệ giữa các đoạn đường.
+* Phân tích các đoạn đường có liên quan.
+* Cung cấp dữ liệu cho graph endpoint trong API.
+
+---
+
+## 6. Các URLs quan trọng
+
+| Dịch vụ           | URL                                          | Ghi chú                            |
+| ----------------- | -------------------------------------------- | ---------------------------------- |
+| Traffic Dashboard | `http://localhost:5173`                      | Giao diện chính                    |
+| FastAPI Docs      | `http://localhost:8000/docs`                 | API documentation                  |
+| Airflow UI        | `http://localhost:8088`                      | `admin / admin`                    |
+| Kafka Bootstrap   | `localhost:9092`                             | Không có UI trong compose hiện tại |
+| Redis CLI         | `docker exec -it big-data-redis-1 redis-cli` | Kiểm tra Redis                     |
+| Neo4j Browser     | `http://localhost:7474`                      | `neo4j / password`                 |
+| MLflow UI         | `http://localhost:5000`                      | Theo dõi experiment                |
+| MinIO Console     | `http://localhost:9001`                      | Optional lakehouse profile         |
+| Trino UI          | `http://localhost:8888`                      | Optional lakehouse profile         |
+
+---
+
+## 7. Các lệnh Makefile chính
 
 ```bash
 make up              # Khởi động local stack
@@ -414,4 +598,20 @@ make benchmark       # Benchmark API
 make frontend-smoke  # Kiểm tra frontend
 make test            # Chạy test
 make ci-local        # Chạy pipeline + DQ + test + frontend
+```
+
+---
+
+## 8. Thành viên
+
+* Tên thành viên 1 - Mã sinh viên
+* Tên thành viên 2 - Mã sinh viên
+* Tên thành viên 3 - Mã sinh viên
+* Tên thành viên 4 - Mã sinh viên
+
+---
+
+*Tài liệu này được cập nhật lần cuối vào: June 18, 2026*
+
+```
 ```
