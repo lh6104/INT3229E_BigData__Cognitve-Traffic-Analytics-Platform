@@ -1,4 +1,4 @@
-````md
+
 # Cognitive Traffic Analytics Platform
 
 ## 1. Tổng quan dự án
@@ -612,5 +612,3 @@ make ci-local        # Chạy pipeline + DQ + test + frontend
 
 *Tài liệu này được cập nhật lần cuối vào: June 18, 2026*
 
-```
-```
