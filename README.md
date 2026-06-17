@@ -571,6 +571,8 @@ Neo4j hỗ trợ:
 * Phân tích các đoạn đường có liên quan.
 * Cung cấp dữ liệu cho graph endpoint trong API.
 
+![Neo4j Graph Analytics](docs/assets/neo4j_analytics.png)
+
 ---
 
 ## 6. Các URLs quan trọng
