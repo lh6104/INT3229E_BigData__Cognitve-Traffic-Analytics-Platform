@@ -206,7 +206,7 @@ services:
       - "8000:8000"
     environment:
       API_DATA_DIR: /app/data
-      CTA_MODEL_DIR: /app/results/cta_model_pack_final_v1_20260613T162016Z
+      CTA_MODEL_DIR: /app/models/results/cta_model_pack_final_v1_20260613T162016Z
       REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
@@ -239,7 +239,7 @@ services:
     command: make test
     environment:
       API_DATA_DIR: /app/data
-      CTA_MODEL_DIR: /app/results/cta_model_pack_final_v1_20260613T162016Z
+      CTA_MODEL_DIR: /app/models/results/cta_model_pack_final_v1_20260613T162016Z
       REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SCHEMA_REGISTRY_URL: http://schema-registry:8081
@@ -264,7 +264,7 @@ services:
     command: make gold
     environment:
       API_DATA_DIR: /app/data
-      CTA_MODEL_DIR: /app/results/cta_model_pack_final_v1_20260613T162016Z
+      CTA_MODEL_DIR: /app/models/results/cta_model_pack_final_v1_20260613T162016Z
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_REGION: ${AWS_REGION:-ap-southeast-1}

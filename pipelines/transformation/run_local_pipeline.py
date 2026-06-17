@@ -39,13 +39,26 @@ def run_stage(
         run_step(command)
 
 
+def resolve_raw_dir(raw_dir: str) -> str:
+    path = Path(raw_dir)
+    candidate = path if path.is_absolute() else PROJECT_ROOT / path
+    if candidate.exists():
+        return raw_dir
+    if raw_dir == "data/raw":
+        legacy = PROJECT_ROOT / "raw"
+        if legacy.exists():
+            return "raw"
+    return raw_dir
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--raw-dir", default="raw")
+    parser.add_argument("--raw-dir", default="data/raw")
     parser.add_argument("--output-dir", default="data")
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--reports-dir", default="reports")
     args = parser.parse_args()
+    args.raw_dir = resolve_raw_dir(args.raw_dir)
 
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():

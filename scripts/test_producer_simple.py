@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from ingestion.producers.base_producer import BaseProducer
+    from pipelines.ingestion.producers.base_producer import BaseProducer
 
     print("✅ BaseProducer imported")
     print("")

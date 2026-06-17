@@ -139,7 +139,7 @@ services:
       - mlflow
     environment:
       API_DATA_DIR: /app/data
-      CTA_MODEL_DIR: /app/results/cta_training_outputs_balanced_v3_latest
+      CTA_MODEL_DIR: /app/models/results/cta_training_outputs_balanced_v3_latest
       REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       MLFLOW_TRACKING_URI: http://mlflow:5000

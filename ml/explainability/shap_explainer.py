@@ -18,8 +18,8 @@ from datetime import datetime
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-from processing.utils.spark_session import get_spark_session
-from processing.utils.iceberg_utils import write_iceberg_table
+from pipelines.processing.utils.spark_session import get_spark_session
+from pipelines.processing.utils.iceberg_utils import write_iceberg_table
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

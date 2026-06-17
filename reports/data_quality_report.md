@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Generated at: 2026-06-17T20:47:57.443965+00:00
+Generated at: 2026-06-17T22:11:43.644518+00:00
 Layer: `gold`
 Input: `data/gold/cleaned_traffic_features`
 Rows: `3192`
@@ -13,7 +13,7 @@ Rows: `3192`
 | duplicate_key | PASS | True | key=['city', 'segment_id', 'time_bucket'] duplicates=0 |
 | timestamp_order | PASS | True | nulls=0 inversions=0 |
 | feature_leakage | PASS | True | suspicious_columns=[] |
-| freshness | PASS | False | timestamp_column=time_bucket max_timestamp=2026-06-12T08:15:00+00:00 age_hours=132.55 warning_hours=168 |
+| freshness | PASS | False | timestamp_column=time_bucket max_timestamp=2026-06-12T08:15:00+00:00 age_hours=133.95 warning_hours=168 |
 | city_type | PASS | True | expected=string invalid_rows=0 |
 | segment_id_type | PASS | True | expected=string invalid_rows=0 |
 | time_bucket_type | PASS | True | expected=timestamp invalid_rows=0 |

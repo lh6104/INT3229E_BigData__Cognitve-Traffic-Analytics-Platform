@@ -1,21 +1,21 @@
 {
-  "run_id": "local_20260617T191004Z",
+  "run_id": "local_20260617T221127Z",
   "status": "success",
-  "start_time_utc": "2026-06-17T19:10:04.176407+00:00",
-  "end_time_utc": "2026-06-17T19:10:16.248497+00:00",
-  "duration_seconds": 12.072,
-  "raw_dir": "raw",
+  "start_time_utc": "2026-06-17T22:11:27.102656+00:00",
+  "end_time_utc": "2026-06-17T22:11:39.502978+00:00",
+  "duration_seconds": 12.4,
+  "raw_dir": "data/raw",
   "output_dir": "data",
   "stages": [
     {
-      "run_id": "local_20260617T191004Z",
+      "run_id": "local_20260617T221127Z",
       "stage_name": "raw_to_bronze_news",
       "status": "success",
-      "start_time_utc": "2026-06-17T19:10:04.176432+00:00",
-      "end_time_utc": "2026-06-17T19:10:04.805264+00:00",
-      "duration_seconds": 0.637,
+      "start_time_utc": "2026-06-17T22:11:27.102685+00:00",
+      "end_time_utc": "2026-06-17T22:11:27.816647+00:00",
+      "duration_seconds": 0.722,
       "input_paths": [
-        "raw/events/*.jsonl"
+        "data/raw/events/*.jsonl"
       ],
       "output_paths": [
         "data/bronze/news_bronze_raw_enhanced",
@@ -31,21 +31,21 @@
         "/home/longha/miniforge3/envs/traffic/bin/python",
         "scripts/build_news_bronze.py",
         "--raw-dir",
-        "raw",
+        "data/raw",
         "--output-dir",
         "data"
       ]
     },
     {
-      "run_id": "local_20260617T191004Z",
+      "run_id": "local_20260617T221127Z",
       "stage_name": "silver_news_gold_event_features",
       "status": "success",
-      "start_time_utc": "2026-06-17T19:10:04.813592+00:00",
-      "end_time_utc": "2026-06-17T19:10:12.206452+00:00",
-      "duration_seconds": 7.395,
+      "start_time_utc": "2026-06-17T22:11:27.824991+00:00",
+      "end_time_utc": "2026-06-17T22:11:35.319289+00:00",
+      "duration_seconds": 7.496,
       "input_paths": [
-        "raw/events/*.jsonl",
-        "raw/traffic/*.jsonl"
+        "data/raw/events/*.jsonl",
+        "data/raw/traffic/*.jsonl"
       ],
       "output_paths": [
         "data/silver/news_events_normalized",
@@ -63,21 +63,21 @@
         "/home/longha/miniforge3/envs/traffic/bin/python",
         "scripts/build_news_event_features.py",
         "--raw-dir",
-        "raw",
+        "data/raw",
         "--output-dir",
         "data"
       ]
     },
     {
-      "run_id": "local_20260617T191004Z",
+      "run_id": "local_20260617T221127Z",
       "stage_name": "silver_traffic_weather_gold_features",
       "status": "success",
-      "start_time_utc": "2026-06-17T19:10:12.208388+00:00",
-      "end_time_utc": "2026-06-17T19:10:16.245399+00:00",
-      "duration_seconds": 4.04,
+      "start_time_utc": "2026-06-17T22:11:35.321229+00:00",
+      "end_time_utc": "2026-06-17T22:11:39.500232+00:00",
+      "duration_seconds": 4.182,
       "input_paths": [
-        "raw/traffic/*.jsonl",
-        "raw/weather/*.jsonl"
+        "data/raw/traffic/*.jsonl",
+        "data/raw/weather/*.jsonl"
       ],
       "output_paths": [
         "data/silver/traffic_cleaned",
@@ -99,7 +99,7 @@
         "/home/longha/miniforge3/envs/traffic/bin/python",
         "scripts/build_local_gold_dataset.py",
         "--raw-dir",
-        "raw",
+        "data/raw",
         "--output-dir",
         "data"
       ]

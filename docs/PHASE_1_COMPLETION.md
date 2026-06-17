@@ -35,7 +35,7 @@ Phase 1 establishes the **complete foundational infrastructure** for the Cogniti
                              ▼
             ┌────────────────────────────────┐
             │  INGESTION LAYER               │
-            │  (ingestion/producers/)        │
+            │  (pipelines/ingestion/producers/)        │
             │  ├─ RSS Fetcher                │
             │  ├─ HTML Scraper               │
             │  ├─ Article Parser             │
@@ -49,7 +49,7 @@ Phase 1 establishes the **complete foundational infrastructure** for the Cogniti
                              ▼
             ┌────────────────────────────────┐
             │  BRONZE LAYER (Raw)            │
-            │  (processing/bronze/)          │
+            │  (pipelines/processing/bronze/)          │
             │  ├─ kafka_to_bronze.py         │
             │  └─ bronze_events_raw (Iceberg)│
             │     Partitioned: city/date/hour│
@@ -58,7 +58,7 @@ Phase 1 establishes the **complete foundational infrastructure** for the Cogniti
                              ▼
             ┌────────────────────────────────┐
             │  SILVER LAYER (Cleaned)        │
-            │  (processing/silver/)          │
+            │  (pipelines/processing/silver/)          │
             │  ├─ Deduplicator               │
             │  ├─ Classifier                 │
             │  ├─ NER (Vietnamese)           │
@@ -71,7 +71,7 @@ Phase 1 establishes the **complete foundational infrastructure** for the Cogniti
                              ▼
             ┌────────────────────────────────┐
             │  GOLD LAYER (Analytics)        │
-            │  (processing/gold/)            │
+            │  (pipelines/processing/gold/)            │
             │  ├─ Feature Engineering        │
             │  ├─ Training Dataset           │
             │  └─ Ready for ML/API           │
@@ -131,7 +131,7 @@ cognitive-traffic-analytics/
 │   ├── grafana/                    # Monitoring dashboards
 │   └── settings.py                 # Application config
 │
-├── 📥 INGESTION (ingestion/)
+├── 📥 INGESTION (pipelines/ingestion/)
 │   ├── producers/                  # News crawlers
 │   │   ├── news_producer.py        # Main entry point
 │   │   ├── rss_fetcher.py         # RSS polling
@@ -142,7 +142,7 @@ cognitive-traffic-analytics/
 │   ├── batch/                      # Batch importers (planned)
 │   └── tomtom_stats/              # API async loader (planned)
 │
-├── ⚙️ PROCESSING (processing/)
+├── ⚙️ PROCESSING (pipelines/processing/)
 │   ├── bronze/                     # Raw data ingestion
 │   │   └── kafka_to_bronze.py      # Spark Structured Streaming
 │   ├── silver/                     # Data cleaning & enrichment
@@ -213,7 +213,7 @@ cognitive-traffic-analytics/
 
 **Purpose:** Extract news articles from multiple sources
 
-#### RSS Fetcher (`ingestion/producers/rss_fetcher.py`)
+#### RSS Fetcher (`pipelines/ingestion/producers/rss_fetcher.py`)
 - Polls RSS feeds from `sources.yaml`
 - Implements ETag/Modified-Since caching to minimize bandwidth
 - Filters articles by traffic-related keywords
@@ -229,7 +229,7 @@ cognitive-traffic-analytics/
 - Batch publishing to Kafka
 ```
 
-#### HTML Scraper (`ingestion/producers/html_scraper.py`)
+#### HTML Scraper (`pipelines/ingestion/producers/html_scraper.py`)
 - Scrapes full article content from websites
 - Uses `trafilatura` for intelligent content extraction
 - Respects `robots.txt` and rate limits per domain
@@ -245,13 +245,13 @@ cognitive-traffic-analytics/
 - Retry with exponential backoff (3 attempts max)
 ```
 
-#### Article Parser (`ingestion/producers/article_parser.py`)
+#### Article Parser (`pipelines/ingestion/producers/article_parser.py`)
 - Normalizes article metadata
 - Extracts title, content, publication date
 - Validates data schema
 - Prepares for downstream processing
 
-#### Kafka Producer (`ingestion/kafka/producer.py`)
+#### Kafka Producer (`pipelines/ingestion/kafka/producer.py`)
 - Publishes validated articles to Kafka
 - Implements schema validation against Avro
 - Dead Letter Queue for failed messages
@@ -261,7 +261,7 @@ cognitive-traffic-analytics/
 
 **Purpose:** Store raw, unprocessed data for replay and audit
 
-**Component:** `processing/bronze/kafka_to_bronze.py`
+**Component:** `pipelines/processing/bronze/kafka_to_bronze.py`
 
 Spark Structured Streaming job that:
 - Consumes `events.news` Kafka topic
@@ -293,7 +293,7 @@ Store raw HTML in MinIO
 
 **Purpose:** Clean, enrich, and validate data
 
-**Orchestrator:** `processing/silver/clean_events.py`
+**Orchestrator:** `pipelines/processing/silver/clean_events.py`
 
 Chains the following processing steps:
 
@@ -666,7 +666,7 @@ docker-compose ps
 
 ```bash
 # Run RSS + HTML crawlers (async)
-python -m ingestion.producers.news_producer
+python -m pipelines.ingestion.producers.news_producer
 
 # Or schedule via Airflow
 airflow dags trigger dag_newscrawler
@@ -676,7 +676,7 @@ airflow dags trigger dag_newscrawler
 
 ```bash
 # Start Spark Structured Streaming
-spark-submit processing/bronze/kafka_to_bronze.py \
+spark-submit pipelines/processing/bronze/kafka_to_bronze.py \
   --kafka-brokers kafka:9092 \
   --kafka-topic events.news \
   --output-path s3://warehouse
@@ -686,7 +686,7 @@ spark-submit processing/bronze/kafka_to_bronze.py \
 
 ```bash
 # Run full Silver pipeline
-spark-submit processing/silver/clean_events.py \
+spark-submit pipelines/processing/silver/clean_events.py \
   --input-table bronze_events_raw \
   --output-table silver_events_clean
 ```

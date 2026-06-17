@@ -272,10 +272,10 @@ def test_producers_import():
     print_header("8. TESTING PRODUCER IMPORTS")
 
     producers = [
-        "ingestion.producers.base_producer.BaseProducer",
-        "ingestion.producers.tomtom_producer.TomTomProducer",
-        "ingestion.producers.weather_producer.WeatherProducer",
-        "ingestion.producers.news_producer.NewsKafkaProducer",
+        "pipelines.ingestion.producers.base_producer.BaseProducer",
+        "pipelines.ingestion.producers.tomtom_producer.TomTomProducer",
+        "pipelines.ingestion.producers.weather_producer.WeatherProducer",
+        "pipelines.ingestion.producers.news_producer.NewsKafkaProducer",
     ]
 
     all_ok = True
@@ -306,8 +306,8 @@ def test_spark_jobs_import():
     print_header("9. TESTING SPARK JOB IMPORTS")
 
     jobs = [
-        "processing.bronze.kafka_to_bronze",
-        "processing.bronze.batch_to_bronze",
+        "pipelines.processing.bronze.kafka_to_bronze",
+        "pipelines.processing.bronze.batch_to_bronze",
     ]
 
     project_root = Path(__file__).resolve().parents[1]

@@ -19,7 +19,7 @@ from build_news_event_features import build as build_news_events
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build normalized news events and enriched local Gold datasets.")
-    parser.add_argument("--raw-dir", default="raw", type=Path)
+    parser.add_argument("--raw-dir", default="data/raw", type=Path)
     parser.add_argument("--output-dir", default="data", type=Path)
     parser.add_argument("--bucket-minutes", default=5, type=int)
     parser.add_argument("--primary-city", default=DEFAULT_PRIMARY_CITY)

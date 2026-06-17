@@ -14,11 +14,11 @@ import numpy as np
 import pandas as pd
 
 from api.services.local_data import PROJECT_ROOT, latest_by_segment, traffic_features
-from intelligence.prediction_reliability import assess_prediction_reliability
+from domain.intelligence.prediction_reliability import assess_prediction_reliability
 
 
-DEFAULT_MODEL_DIR = "results/cta_model_pack_final_v1_20260613T162016Z"
-LEGACY_MODEL_DIR = "results/cta_training_outputs_balanced_v3_latest"
+DEFAULT_MODEL_DIR = "models/results/cta_model_pack_final_v1_20260613T162016Z"
+LEGACY_MODEL_DIR = "models/results/cta_training_outputs_balanced_v3_latest"
 MODEL_ARTIFACT_CANDIDATES = {
     "15m": [
         "traffic_model.joblib",

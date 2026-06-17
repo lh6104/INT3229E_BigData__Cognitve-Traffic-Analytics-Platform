@@ -10,7 +10,7 @@ echo "======================================================================"
 echo ""
 
 WAREHOUSE="s3a://lakehouse"
-RAW_DATA_DIR="${RAW_DATA_DIR:-raw}"
+RAW_DATA_DIR="${RAW_DATA_DIR:-data/raw}"
 
 # Test 1: Verify raw data files exist
 echo "✅ TEST 1: Raw Data Structure"
@@ -23,10 +23,10 @@ echo ""
 # Test 2: Verify Phase 2 code files exist
 echo "✅ TEST 2: Phase 2 Code Structure"
 declare -a CODE_FILES=(
-    "processing/batch_load/load_raw_data.py"
-    "processing/silver/clean_traffic.py"
-    "processing/silver/clean_weather.py"
-    "processing/silver/match_traffic_weather.py"
+    "pipelines/processing/batch_load/load_raw_data.py"
+    "pipelines/processing/silver/clean_traffic.py"
+    "pipelines/processing/silver/clean_weather.py"
+    "pipelines/processing/silver/match_traffic_weather.py"
     "airflow/dags/dag_load_raw_data.py"
     "airflow/dags/dag_silver_processing.py"
 )

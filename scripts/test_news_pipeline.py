@@ -27,14 +27,14 @@ def test_imports():
     logger.info("=" * 80)
 
     modules_to_test = [
-        ("ingestion.producers.rss_fetcher", "RSS Fetcher module"),
-        ("ingestion.producers.html_scraper", "HTML Scraper module"),
-        ("ingestion.producers.article_parser", "Article Parser module"),
-        ("ingestion.kafka.producer", "Kafka Producer module"),
-        ("processing.silver.classifier", "Event Classifier module"),
-        ("processing.silver.deduplicator", "Deduplicator module"),
-        ("processing.silver.geocoder", "Geocoder module"),
-        ("processing.silver.clean_events", "Silver Pipeline module"),
+        ("pipelines.ingestion.producers.rss_fetcher", "RSS Fetcher module"),
+        ("pipelines.ingestion.producers.html_scraper", "HTML Scraper module"),
+        ("pipelines.ingestion.producers.article_parser", "Article Parser module"),
+        ("pipelines.ingestion.kafka.producer", "Kafka Producer module"),
+        ("pipelines.processing.silver.classifier", "Event Classifier module"),
+        ("pipelines.processing.silver.deduplicator", "Deduplicator module"),
+        ("pipelines.processing.silver.geocoder", "Geocoder module"),
+        ("pipelines.processing.silver.clean_events", "Silver Pipeline module"),
         ("models.event", "Event Models module"),
         ("infra.settings", "Settings module"),
     ]
@@ -139,8 +139,8 @@ def test_processing_pipeline():
     logger.info("=" * 80)
 
     try:
-        from processing.silver.clean_events import SilverEventProcessor
-        from processing.utils.spark_session import get_spark_session
+        from pipelines.processing.silver.clean_events import SilverEventProcessor
+        from pipelines.processing.utils.spark_session import get_spark_session
 
         logger.info("✓ SilverEventProcessor can be instantiated")
         logger.info("✓ Spark session helper is available")
@@ -158,11 +158,11 @@ def test_file_structure():
 
     required_dirs = [
         "infra",
-        "ingestion/producers",
-        "processing/bronze",
-        "processing/silver",
-        "processing/gold",
-        "processing/utils",
+        "pipelines/ingestion/producers",
+        "pipelines/processing/bronze",
+        "pipelines/processing/silver",
+        "pipelines/processing/gold",
+        "pipelines/processing/utils",
         "models",
         "airflow/dags",
         "tests/unit",

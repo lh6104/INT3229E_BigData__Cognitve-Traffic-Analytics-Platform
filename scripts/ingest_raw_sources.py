@@ -1,13 +1,13 @@
-"""Ingest live sources directly into local raw/ JSONL folders.
+"""Ingest live sources directly into local data/raw/ JSONL folders.
 
 This is a lightweight raw-zone collector for short local runs. It does not
 replace the original Kafka/Spark lakehouse path; it creates raw JSONL snapshots
 that can be consumed by scripts/build_local_gold_dataset.py.
 
 Sources:
-- TomTom Flow Segment API -> raw/traffic
-- OpenWeatherMap current weather -> raw/weather
-- RSS/HTML sources from sources.yaml -> raw/events
+- TomTom Flow Segment API -> data/raw/traffic
+- OpenWeatherMap current weather -> data/raw/weather
+- RSS/HTML sources from sources.yaml -> data/raw/events
 
 API-keyed sources are skipped when their keys are missing.
 """
@@ -369,7 +369,7 @@ def load_env_file(path: Path) -> None:
 
 
 def collect_rss(raw_dir: Path, sources: list[dict[str, Any]]) -> int:
-    from ingestion.producers.rss_fetcher import fetch_rss
+    from pipelines.ingestion.producers.rss_fetcher import fetch_rss
 
     records = []
     now = iso_now()
@@ -529,8 +529,8 @@ def run(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest live sources into local raw/ JSONL folders.")
-    parser.add_argument("--raw-dir", type=Path, default=Path("raw"))
+    parser = argparse.ArgumentParser(description="Ingest live sources into local data/raw/ JSONL folders.")
+    parser.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
     parser.add_argument("--sources", type=Path, default=Path("sources.yaml"))
     parser.add_argument("--duration-seconds", type=int, default=600)
     parser.add_argument("--poll-seconds", type=int, default=300)

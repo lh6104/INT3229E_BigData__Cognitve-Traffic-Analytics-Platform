@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-17T20:48:30.859068+00:00",
-  "base_url": "http://127.0.0.1:8001",
+  "generated_at": "2026-06-17T22:12:04.782120+00:00",
+  "base_url": "http://localhost:8000",
   "checks": [
     {
       "check": "API health",
@@ -35,17 +35,17 @@
     {
       "check": "Forecast 15m",
       "status": "PASS",
-      "detail": "model=extra_trees, coverage=62/62, latency_ms=711.3"
+      "detail": "model=lightgbm_main, coverage=35/67, latency_ms=21.8"
     },
     {
       "check": "Forecast 60m",
       "status": "PASS",
-      "detail": "model=extra_trees, coverage=62/62, latency_ms=37.8"
+      "detail": "model=lightgbm_main, coverage=35/67, latency_ms=15.0"
     },
     {
       "check": "Forecast reliability",
       "status": "PASS",
-      "detail": "model=extra_trees, coverage=62/62, latency_ms=28.8"
+      "detail": "model=lightgbm_main, coverage=35/67, latency_ms=18.7"
     },
     {
       "check": "Predicted hotspots",
@@ -80,7 +80,7 @@
     {
       "check": "Frontend build",
       "status": "PASS",
-      "detail": "npm run build completed in 7.32s"
+      "detail": "npm run build completed in 7.15s"
     }
   ],
   "overall_status": "PASS"

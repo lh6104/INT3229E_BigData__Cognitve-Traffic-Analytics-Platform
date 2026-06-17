@@ -4,7 +4,7 @@
 |---|---|---|---|
 | API | FastAPI đọc local artifacts và Gold data | FastAPI + cache/service layer + deployment hardening | Demo ready |
 | Frontend | React/TanStack/Vite local dashboard | Deployed frontend with monitored API integration | Demo ready |
-| Storage | Local CSV/Parquet/JSONL under `raw/` and `data/` | MinIO/Iceberg/Trino lakehouse | Partial/planned |
+| Storage | Local CSV/Parquet/JSONL under `data/raw/` and `data/` | MinIO/Iceberg/Trino lakehouse | Partial/planned |
 | Streaming | Mini-demo/local design when Kafka is running | Kafka producers/consumers with offsets, lag, DLQ, and orchestration | Partial |
 | ML | Local joblib artifact loaded by API | Model registry + artifact versioning + monitoring | Prototype |
 | Forecast | API inference with feature coverage reporting and partial fill | Full feature schema with reliability gating | Prototype |

@@ -1,7 +1,7 @@
 """Build an auditable Bronze news evidence layer from raw JSONL captures.
 
 Inputs:
-- raw/events/*.jsonl
+- data/raw/events/*.jsonl
 
 Outputs:
 - data/bronze/news_bronze_raw_enhanced.parquet
@@ -636,7 +636,7 @@ def build(raw_dir: Path, output_dir: Path) -> pd.DataFrame:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build auditable Bronze news evidence from raw event JSONL.")
-    parser.add_argument("--raw-dir", type=Path, default=Path("raw"))
+    parser.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
     parser.add_argument("--output-dir", type=Path, default=Path("data"))
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")

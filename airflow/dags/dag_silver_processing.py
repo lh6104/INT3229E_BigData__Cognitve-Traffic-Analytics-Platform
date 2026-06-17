@@ -27,7 +27,7 @@ dag = DAG(
 
 SPARK_SUBMIT = "spark-submit --master spark://spark-master:7077 --deploy-mode client --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0"
 WAREHOUSE = "s3a://lakehouse"
-RAW_DATA_DIR = "/opt/airflow/raw"
+RAW_DATA_DIR = "/opt/airflow/data/raw"
 
 # Phase 2a: Clean traffic and weather in parallel
 with TaskGroup("clean_data", tooltip="Validate and clean raw data", dag=dag) as tg_clean:
@@ -35,7 +35,7 @@ with TaskGroup("clean_data", tooltip="Validate and clean raw data", dag=dag) as 
         task_id="clean_traffic",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/processing/silver/clean_traffic.py \
+            /opt/spark-apps/pipelines/processing/silver/clean_traffic.py \
             {WAREHOUSE}
         """,
     )
@@ -44,7 +44,7 @@ with TaskGroup("clean_data", tooltip="Validate and clean raw data", dag=dag) as 
         task_id="clean_weather",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/processing/silver/clean_weather.py \
+            /opt/spark-apps/pipelines/processing/silver/clean_weather.py \
             {WAREHOUSE}
         """,
     )
@@ -56,7 +56,7 @@ match_traffic_weather = BashOperator(
     task_id="match_traffic_weather",
     bash_command=f"""
     {SPARK_SUBMIT} \
-        /opt/spark-apps/processing/silver/match_traffic_weather.py \
+        /opt/spark-apps/pipelines/processing/silver/match_traffic_weather.py \
         {WAREHOUSE}
     """,
     dag=dag,
@@ -68,7 +68,7 @@ with TaskGroup("clean_events", tooltip="Process news events", dag=dag) as tg_eve
         task_id="clean_news_events",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/processing/silver/clean_events.py \
+            /opt/spark-apps/pipelines/processing/silver/clean_events.py \
             {WAREHOUSE}
         """,
     )
