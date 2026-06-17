@@ -1,0 +1,99 @@
+{
+  "path": "/predictions/HN_005/explain?horizon=15m",
+  "status_code": 200,
+  "response": {
+    "prediction_id": "HN_005",
+    "segment_id": "HN_005",
+    "horizon": "15m",
+    "predicted_speed": 28.31,
+    "current_speed": 26.639,
+    "current_jam_factor": 2.436,
+    "model_name": "extra_trees",
+    "model_artifact": "models/selected_model_15m_lightgbm.joblib",
+    "model_source": "/home/longha/Desktop/big-data/results/cta_model_pack_final_v1_20260613T162016Z",
+    "data_source": "gold_local",
+    "attribution_method": "single_feature_baseline_perturbation",
+    "method_description": "Each feature is replaced with a baseline value one at a time; the prediction delta is used as attribution.",
+    "reliability_level": "High",
+    "reliability_reasons": [
+      "Weather context is missing or default-filled."
+    ],
+    "required_feature_count": 62,
+    "available_feature_count": 62,
+    "filled_feature_count": 0,
+    "missing_features": [],
+    "top_features": [
+      {
+        "name": "hour_of_day",
+        "value": 23.0,
+        "baseline_value": 15.0,
+        "shap_value": 0.93,
+        "direction": "raises_speed"
+      },
+      {
+        "name": "congestion_ratio",
+        "value": 0.2165,
+        "baseline_value": 0.3142857142857143,
+        "shap_value": -0.099,
+        "direction": "lowers_speed"
+      },
+      {
+        "name": "speed_lag_2",
+        "value": 27.013,
+        "baseline_value": 24.0,
+        "shap_value": 0.086,
+        "direction": "raises_speed"
+      },
+      {
+        "name": "speed_lag_1",
+        "value": 27.652,
+        "baseline_value": 24.0,
+        "shap_value": -0.041,
+        "direction": "lowers_speed"
+      },
+      {
+        "name": "speed_lag_3",
+        "value": 27.835,
+        "baseline_value": 24.0,
+        "shap_value": -0.036,
+        "direction": "lowers_speed"
+      },
+      {
+        "name": "day_of_week",
+        "value": 0.0,
+        "baseline_value": 4.0,
+        "shap_value": 0.032,
+        "direction": "raises_speed"
+      },
+      {
+        "name": "is_peak_hour",
+        "value": 0.0,
+        "baseline_value": 1.0,
+        "shap_value": -0.002,
+        "direction": "lowers_speed"
+      },
+      {
+        "name": "speed_lag_4",
+        "value": 27.986,
+        "baseline_value": 24.0,
+        "shap_value": -0.002,
+        "direction": "lowers_speed"
+      }
+    ],
+    "weather_context": {
+      "temperature": null,
+      "humidity": null,
+      "rain_1h": null,
+      "visibility": null,
+      "source": "OpenWeatherMap",
+      "fallback": "neutral_weather_features"
+    },
+    "baseline_context": {
+      "p15": 26.822,
+      "p50": 30.057,
+      "p85": 31.0082,
+      "typical_hour_avg": null,
+      "mode": "training-median-baseline"
+    }
+  }
+}

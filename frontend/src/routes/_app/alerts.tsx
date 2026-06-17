@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
 import { Bell, CheckCircle2, Clock, MapPin, TrendingUp, AlertTriangle, X } from "lucide-react";
@@ -10,15 +10,21 @@ export const Route = createFileRoute("/_app/alerts")({
 });
 
 type ApiAlert = {
+  id: string;
   alert_id: string;
   segment_id: string;
   city: string;
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   reason: string;
+  horizon: string;
   predicted_speed: number;
+  current_speed: number;
   baseline_p50: number;
+  detected_at: string;
   created_at: string;
   acknowledged: boolean;
+  status: "active" | "acknowledged" | "dismissed";
+  source: "rule" | "model" | "demo" | string;
 };
 
 type Alert = {
@@ -28,8 +34,13 @@ type Alert = {
   cause: string;
   eta: string;
   source: string;
-  status: "active" | "acknowledged" | "resolved";
+  status: "active" | "acknowledged" | "dismissed";
   t: string;
+  horizon: string;
+  segmentId: string;
+  city: string;
+  predictedSpeed: number;
+  currentSpeed: number;
   rising: boolean;
 };
 
@@ -39,9 +50,14 @@ const toAlert = (a: ApiAlert): Alert => ({
   sev: (a.severity.charAt(0) + a.severity.slice(1).toLowerCase()) as Alert["sev"],
   cause: a.reason,
   eta: `${Math.max(Math.round((a.baseline_p50 - a.predicted_speed) * 2), 0)} min risk`,
-  source: "Local gold dataset",
-  status: a.acknowledged ? "acknowledged" : "active",
-  t: new Date(a.created_at).toLocaleString(),
+  source: a.source,
+  status: a.status,
+  t: new Date(a.detected_at ?? a.created_at).toLocaleString(),
+  horizon: a.horizon,
+  segmentId: a.segment_id,
+  city: a.city,
+  predictedSpeed: a.predicted_speed,
+  currentSpeed: a.current_speed,
   rising: a.severity === "CRITICAL" || a.severity === "HIGH",
 });
 
@@ -55,7 +71,7 @@ const sevTone: Record<string, string> = {
 const statusTone: Record<string, string> = {
   active: "bg-destructive/10 text-destructive",
   acknowledged: "bg-primary-soft text-accent-foreground",
-  resolved: "bg-secondary text-muted-foreground",
+  dismissed: "bg-secondary text-muted-foreground",
 };
 
 const filters = ["All", "Critical", "High", "Active", "Acknowledged", "Hanoi", "HCMC"] as const;
@@ -74,6 +90,7 @@ function matches(a: Alert, f: Filter) {
 }
 
 function AlertsPage() {
+  const navigate = useNavigate({ from: "/alerts" });
   const [filter, setFilter] = useState<Filter>("All");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [ackLoading, setAckLoading] = useState(false);
@@ -126,8 +143,22 @@ function AlertsPage() {
     }
   };
 
+  const acknowledgeOne = async (id: string) => {
+    await apiPatch(`/alerts/${encodeURIComponent(id)}/ack`, { acknowledged: true });
+    await mutate();
+  };
+
+  const dismissOne = async (id: string) => {
+    await apiPatch(`/alerts/${encodeURIComponent(id)}/dismiss`, {});
+    await mutate();
+  };
+
+  const openForecast = (alert: Alert) => {
+    navigate({ to: "/forecast", search: { city: alert.city === "hcmc" ? "hcmc" : "hanoi", segment: alert.segmentId } });
+  };
+
   return (
-    <PlaceholderPage title="Alerts" subtitle="Manage real-time traffic alerts by severity and status">
+    <PlaceholderPage title="Alerts" subtitle="Manage local traffic risk alerts by severity and operator status">
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
@@ -211,7 +242,9 @@ function AlertsPage() {
                   <th className="pb-3 font-medium">Location</th>
                   <th className="pb-3 font-medium">Severity</th>
                   <th className="pb-3 font-medium">Cause</th>
-                  <th className="pb-3 font-medium">ETA</th>
+                  <th className="pb-3 font-medium">Horizon</th>
+                  <th className="pb-3 font-medium">Current</th>
+                  <th className="pb-3 font-medium">Predicted</th>
                   <th className="pb-3 font-medium">Source</th>
                   <th className="pb-3 font-medium">Status</th>
                   <th className="pb-3 font-medium">Detected</th>
@@ -234,13 +267,16 @@ function AlertsPage() {
                     <td className="font-medium"><span className="inline-flex items-center gap-1.5"><MapPin className="h-3 w-3 text-muted-foreground" />{a.loc}</span></td>
                     <td><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${sevTone[a.sev]}`}>{a.sev}{a.rising && <TrendingUp className="h-3 w-3" />}</span></td>
                     <td className="text-muted-foreground">{a.cause}</td>
-                    <td className="text-muted-foreground">{a.eta}</td>
+                    <td className="text-muted-foreground">{a.horizon}</td>
+                    <td className="text-muted-foreground">{a.currentSpeed.toFixed(1)} km/h</td>
+                    <td className="text-muted-foreground">{a.predictedSpeed.toFixed(1)} km/h</td>
                     <td className="text-[11px] text-muted-foreground">{a.source}</td>
                     <td><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${statusTone[a.status]}`}>{a.status}</span></td>
                     <td className="text-muted-foreground">{a.t}</td>
                     <td className="space-x-1">
-                      {a.status === "active" && <button className="rounded-full bg-foreground px-3 py-1 text-[11px] font-medium text-background">Ack</button>}
-                      <button className="rounded-full border border-border px-3 py-1 text-[11px]">Detail</button>
+                      {a.status === "active" && <button onClick={() => acknowledgeOne(a.id)} className="rounded-full bg-foreground px-3 py-1 text-[11px] font-medium text-background">Ack</button>}
+                      <button onClick={() => dismissOne(a.id)} className="rounded-full border border-border px-3 py-1 text-[11px]">Dismiss</button>
+                      <button onClick={() => openForecast(a)} className="rounded-full border border-border px-3 py-1 text-[11px]">Forecast</button>
                     </td>
                   </tr>
                 ))}

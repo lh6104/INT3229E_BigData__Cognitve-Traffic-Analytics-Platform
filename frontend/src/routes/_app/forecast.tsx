@@ -264,7 +264,7 @@ function ForecastPage() {
   const currentJam = primaryPrediction?.current_jam_factor ?? selectedSegment?.jam_factor ?? null;
   const congestion = congestionFromSpeed(currentSpeed, selectedSegment?.free_flow_speed, currentJam);
   const risk = riskFromForecast(currentSpeed, prediction60?.predicted_speed, currentJam);
-  const weather = risk === "High" ? "Light Rain" : "Clear";
+  const weather = "Weather features from local Gold when available";
   const now = primaryPrediction?.latest_timestamp ? new Date(primaryPrediction.latest_timestamp) : new Date();
   const series = useMemo(() => buildSeries(currentSpeed, prediction15, prediction60), [currentSpeed, prediction15, prediction60]);
   const explanations = useMemo(
@@ -289,7 +289,7 @@ function ForecastPage() {
 
   const title = selectedSegmentId ? `Forecast · ${selectedSegmentId}` : "Forecast";
   const subtitle = selectedSegment
-    ? `${formatCity(selectedSegment.city)} · ${selectedSegment.road_class} · live model inference`
+    ? `${formatCity(selectedSegment.city)} · ${selectedSegment.road_class} · local artifact inference`
     : "Traffic speed forecasting with model context and feature coverage";
 
   return (
@@ -321,6 +321,13 @@ function ForecastPage() {
           <span className="rounded-full bg-secondary px-3 py-2 text-[11px] text-muted-foreground">
             Data source: {primaryPrediction?.data_source ?? "API model inference"}
           </span>
+          <button
+            onClick={() => selectedSegmentId && navigate({ to: "/explanations", search: { city, segment: selectedSegmentId, horizon: "15m" } })}
+            disabled={!selectedSegmentId}
+            className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            Open explanation
+          </button>
         </div>
 
         {(apiError || isLoading || !segments?.length) && (
@@ -330,6 +337,12 @@ function ForecastPage() {
               : isLoading
                 ? "Loading forecast cards, model context, and feature coverage..."
                 : "No traffic segments returned for this city. Select another city or verify local Gold data."}
+          </div>
+        )}
+
+        {(!featureCoverageOk || prediction15?.warning || prediction60?.warning) && (
+          <div className="col-span-12 rounded-2xl border border-warning/30 bg-[oklch(0.95_0.08_70)] px-4 py-3 text-sm text-[oklch(0.45_0.15_70)]">
+            Prediction confidence is reduced because some features were filled from local defaults.
           </div>
         )}
 
@@ -559,8 +572,8 @@ function ModelQualityPanel({
   metric15?: ModelMetric;
   metric60?: ModelMetric;
 }) {
-  const modelName = prediction15?.model_name ?? prediction60?.model_name ?? "LightGBM";
-  const artifact = prediction15?.model_artifact ?? prediction60?.model_artifact ?? "demo metric fallback";
+  const modelName = prediction15?.model_name ?? prediction60?.model_name ?? "not available";
+  const artifact = prediction15?.model_artifact ?? prediction60?.model_artifact ?? "not available";
   return (
     <div className="rounded-3xl bg-card p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
@@ -571,9 +584,9 @@ function ModelQualityPanel({
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <QualityTile icon={Activity} label="Model type" value={modelName.includes("LightGBM") ? "LightGBM" : modelName} detail="Target: speed forecast" />
-        <QualityTile icon={BarChart3} label="Validation" value="Time split" detail="No future leakage" />
-        <QualityTile icon={TrendingDown} label="15m MAE / RMSE" value={`${formatNumber(metric15?.mae ?? 3.2)} / ${formatNumber(metric15?.rmse ?? 4.8)}`} detail={metric15 ? `${metric15.rows.toLocaleString()} rows` : "demo values"} />
-        <QualityTile icon={TrendingUp} label="60m MAE / RMSE" value={`${formatNumber(metric60?.mae ?? 4.7)} / ${formatNumber(metric60?.rmse ?? 6.4)}`} detail={metric60 ? `${metric60.rows.toLocaleString()} rows` : "demo values"} />
+        <QualityTile icon={BarChart3} label="Validation" value={metric15 || metric60 ? "Time split" : "not measured"} detail={metric15 || metric60 ? "No future leakage" : "missing metrics"} />
+        <QualityTile icon={TrendingDown} label="15m MAE / RMSE" value={metric15 ? `${formatNumber(metric15.mae)} / ${formatNumber(metric15.rmse)}` : "not measured"} detail={metric15 ? `${metric15.rows.toLocaleString()} rows` : "no report"} />
+        <QualityTile icon={TrendingUp} label="60m MAE / RMSE" value={metric60 ? `${formatNumber(metric60.mae)} / ${formatNumber(metric60.rmse)}` : "not measured"} detail={metric60 ? `${metric60.rows.toLocaleString()} rows` : "no report"} />
       </div>
       <div className="mt-3 truncate rounded-2xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
         Artifact: <span className="font-semibold text-foreground">{artifact}</span>

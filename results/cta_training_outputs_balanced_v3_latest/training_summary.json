@@ -1,0 +1,26 @@
+[
+  {
+    "task": "15m_speed",
+    "selected_model": "extra_trees",
+    "artifact": "best_model_15m_speed_extra_trees.joblib",
+    "rows": 1690,
+    "feature_count": 68,
+    "mae": 1.257383333333333,
+    "rmse": 1.6227695750629534,
+    "r2": 0.34344318732024015,
+    "dataset_path": "data/gold/train_features_15m.parquet",
+    "training_mode": "trained"
+  },
+  {
+    "task": "60m_speed",
+    "selected_model": "extra_trees",
+    "artifact": "best_model_60m_speed_extra_trees.joblib",
+    "rows": 910,
+    "feature_count": 66,
+    "mae": 1.3987499999999997,
+    "rmse": 1.7831243026795922,
+    "r2": 0.2435515667425986,
+    "dataset_path": "data/gold/train_features_60m.parquet",
+    "training_mode": "trained"
+  }
+]

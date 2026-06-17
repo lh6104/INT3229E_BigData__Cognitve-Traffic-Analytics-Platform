@@ -48,6 +48,9 @@ class PredictionExplanation(BaseModel):
     model_source: str
     data_source: str
     attribution_method: str
+    method_description: str
+    reliability_level: str
+    reliability_reasons: List[str]
     required_feature_count: int
     available_feature_count: int
     filled_feature_count: int
@@ -192,6 +195,20 @@ def explain_prediction(
     if weather_temperature is None and weather_humidity is None and weather_visibility is None:
         weather_rain = None
 
+    filled_count = len(missing)
+    reliability_reasons: list[str] = []
+    if filled_count:
+        reliability_reasons.append("Some model features were filled from local defaults.")
+    if not contributions:
+        reliability_reasons.append("No meaningful perturbation deltas were produced for the top features.")
+    if weather_temperature is None and weather_humidity is None and weather_visibility is None:
+        reliability_reasons.append("Weather context is missing or default-filled.")
+    reliability_level = "High"
+    if filled_count or not contributions:
+        reliability_level = "Medium"
+    if filled_count > max(3, len(feature_columns) // 4):
+        reliability_level = "Low"
+
     return PredictionExplanation(
         prediction_id=prediction_id,
         segment_id=str(row["segment_id"]),
@@ -204,9 +221,12 @@ def explain_prediction(
         model_source=str(model_dir()),
         data_source="gold_local",
         attribution_method="single_feature_baseline_perturbation",
+        method_description="Each feature is replaced with a baseline value one at a time; the prediction delta is used as attribution.",
+        reliability_level=reliability_level,
+        reliability_reasons=reliability_reasons,
         required_feature_count=len(feature_columns),
         available_feature_count=len(feature_columns) - len(missing),
-        filled_feature_count=len(missing),
+        filled_feature_count=filled_count,
         missing_features=missing[:50],
         top_features=contributions,
         weather_context={

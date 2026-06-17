@@ -1,15 +1,34 @@
-"""Graph reasoning endpoints backed by local demo data or Neo4j later."""
+"""Graph reasoning endpoints backed by Neo4j with local Gold fallback."""
 
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
+from api.services.graph_service import graph_health, hotspots, neighbors
 from api.services.local_data import DataUnavailableError, latest_by_segment, traffic_features
 from intelligence.risk_scoring import score_segment_risk
 
 
 router = APIRouter()
+
+
+@router.get("/health")
+def get_graph_health() -> dict[str, Any]:
+    """Return Neo4j graph readiness and local fallback status."""
+    return graph_health()
+
+
+@router.get("/hotspots")
+def get_graph_hotspots(limit: int = Query(10, ge=1, le=50)) -> dict[str, Any]:
+    """Return top congested graph hotspots."""
+    return hotspots(limit=limit)
+
+
+@router.get("/segments/{segment_id}/neighbors")
+def get_segment_neighbors(segment_id: str, limit: int = Query(10, ge=1, le=50)) -> dict[str, Any]:
+    """Return neighboring impacted segments for a road segment."""
+    return neighbors(segment_id=segment_id, limit=limit)
 
 
 @router.get("/propagation/{segment_id}")

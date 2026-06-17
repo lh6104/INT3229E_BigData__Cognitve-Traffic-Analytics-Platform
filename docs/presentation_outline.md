@@ -69,7 +69,7 @@ Suggested structure for a 60-minute capstone presentation.
 - Tests pass in Docker Python 3.11.
 - Frontend build passes.
 - Model metrics should be read from `/traffic/model/status` or the generated report, not hard-coded.
-- Show smoke/benchmark reports if generated: `docs/demo_smoke_report.md`, `docs/performance_report.md`.
+- Show smoke/benchmark reports if generated: `docs/demo_smoke_report.md`, `reports/api_benchmark.md`.
 - Demo coverage and endpoint readiness.
 
 ## 59-60 min: Limitations And Q&A

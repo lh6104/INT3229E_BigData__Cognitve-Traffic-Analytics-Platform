@@ -21,6 +21,7 @@ DEFAULT_MODEL_DIR = "results/cta_model_pack_final_v1_20260613T162016Z"
 LEGACY_MODEL_DIR = "results/cta_training_outputs_balanced_v3_latest"
 MODEL_ARTIFACT_CANDIDATES = {
     "15m": [
+        "traffic_model.joblib",
         "models/selected_model_15m_lightgbm.joblib",
         "selected_model_15m_speed_lightgbm_main.joblib",
         "best_model_15m_speed_extra_trees.joblib",

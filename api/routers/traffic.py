@@ -1,4 +1,4 @@
-"""Traffic data endpoints (real-time and forecast)."""
+"""Traffic data endpoints for local snapshots and forecast artifacts."""
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field

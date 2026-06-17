@@ -1,0 +1,101 @@
+{
+  "source_artifacts": {
+    "model_manifest": "results/cta_model_pack_final_v1_20260613T162016Z/metadata/model_manifest.json",
+    "feature_schema_used": "results/cta_model_pack_final_v1_20260613T162016Z/metadata/feature_schema_used.json"
+  },
+  "status": "PASS",
+  "checks": {
+    "no_target_future_prediction_like_features": true,
+    "no_forbidden_features_in_feature_schema": true,
+    "chronological_split_declared": true,
+    "target_group_shift_by_segment_declared": true,
+    "rolling_lag_past_or_present_declared": true
+  },
+  "feature_counts": {
+    "numeric": 54,
+    "categorical": 8,
+    "total": 62
+  },
+  "targets": {
+    "15m": "future_speed_15m",
+    "60m": "future_speed_60m",
+    "240m": "future_speed_240m"
+  },
+  "suspicious_features": [],
+  "leaked_forbidden_features": [],
+  "dataset_manifest": {
+    "dataset_name": "gold_training_dataset",
+    "version": "v1_30d",
+    "created_date": "2026-06-10",
+    "grain": "segment_id_timestamp",
+    "time_frequency": "15min",
+    "cities": [
+      "hanoi",
+      "hcmc"
+    ],
+    "horizons": [
+      "15m",
+      "60m",
+      "240m"
+    ],
+    "has_targets": true,
+    "target_columns": [
+      "future_speed_15m",
+      "future_speed_60m",
+      "future_speed_240m"
+    ],
+    "intended_use": "Kaggle model training for Cognitive Traffic Analytics forecasting notebook",
+    "source_tables": [
+      "exports/kaggle_training_pack_v1_20260610/data/gold_training_dataset.parquet",
+      "synthetic_30_day_calendar_grid_calibrated_from_existing_segment_profiles"
+    ],
+    "row_count": 57600,
+    "column_count": 67,
+    "min_timestamp": "2026-05-10T00:00:00",
+    "max_timestamp": "2026-06-08T23:45:00",
+    "synthetic_policy": {
+      "contains_synthetic_rows": true,
+      "synthetic_row_count": 57600,
+      "real_observation_claim": false,
+      "note": "Rows are realistic synthetic samples calibrated from the existing pack. Use real TomTom/OWM collection for production-grade evidence."
+    }
+  },
+  "selected_metrics": {
+    "15m": {
+      "horizon": "15m",
+      "model": "lightgbm",
+      "model_type": "ml",
+      "split": "test",
+      "MAE": 1.224087825205643,
+      "RMSE": 1.640874837779288,
+      "R2": 0.9524006695159954,
+      "MAPE": 4.0635527959380235,
+      "n": 8640,
+      "train_seconds": 10.467214584350586
+    },
+    "60m": {
+      "horizon": "60m",
+      "model": "lightgbm",
+      "model_type": "ml",
+      "split": "test",
+      "MAE": 1.2717418887461442,
+      "RMSE": 1.7230878929785496,
+      "R2": 0.9475962869897496,
+      "MAPE": 4.237110281285941,
+      "n": 8640,
+      "train_seconds": 8.244945049285889
+    },
+    "240m": {
+      "horizon": "240m",
+      "model": "lightgbm",
+      "model_type": "ml",
+      "split": "test",
+      "MAE": 1.30163504354461,
+      "RMSE": 1.7477433477093969,
+      "R2": 0.9465258154507907,
+      "MAPE": 4.3159483193537085,
+      "n": 8640,
+      "train_seconds": 8.91901445388794
+    }
+  }
+}

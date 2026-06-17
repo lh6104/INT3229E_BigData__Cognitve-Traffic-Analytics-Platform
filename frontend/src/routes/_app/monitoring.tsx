@@ -110,6 +110,18 @@ type SystemStatus = {
   };
 };
 
+type SystemEvidence = {
+  overall_status: "OK" | "Degraded" | "Unhealthy";
+  reasons: string[];
+  data_freshness: { status: string; age_hours?: number | null; warning?: string | null; last_updated?: string | null };
+  pipeline_run_manifest: { status: string; run_id?: string | null; end_time_utc?: string | null; duration_seconds?: number | null };
+  dq_report: { status: string; rows?: number | null; failure_count?: number; warning_count?: number; critical_failure_count?: number };
+  api_benchmark: { status: string; p50_ms?: number | null; p95_ms?: number | null; error_count?: number | null };
+  model: { status: string; ready: boolean; artifact_version?: string | null; training_rows?: number | null };
+  streaming_demo: { status: string; mode: string; counts?: Record<string, number | null | undefined> };
+  limitations: string[];
+};
+
 function StatusDot({ status, pulse }: { status: PipeStatus; pulse?: boolean }) {
   const color =
     status === "healthy" ? "bg-success" : status === "degraded" ? "bg-warning" : "bg-destructive";
@@ -158,6 +170,11 @@ function MonitoringPage() {
     apiGet,
     { refreshInterval: 30_000 }
   );
+  const { data: evidence, error: evidenceError } = useSWR<SystemEvidence>(
+    "/system/evidence",
+    apiGet,
+    { refreshInterval: 60_000 }
+  );
   const { data: pipeline, error: pipelineError, isLoading: pipelineLoading } = useSWR<PipelineStatus[]>(
     "/monitoring/pipeline",
     apiGet,
@@ -179,7 +196,7 @@ function MonitoringPage() {
     { refreshInterval: 30_000 }
   );
 
-  const apiError = systemError || pipelineError || modelError || trendsError || summaryError;
+  const apiError = systemError || evidenceError || pipelineError || modelError || trendsError || summaryError;
   const loading = systemLoading || pipelineLoading || modelLoading;
   const unhealthy = (pipeline ?? []).filter((item) => item.status === "unhealthy").length;
   const degraded = (pipeline ?? []).filter((item) => item.status === "degraded").length;
@@ -205,20 +222,50 @@ function MonitoringPage() {
           </div>
         )}
 
+        <div className="col-span-12 rounded-3xl bg-card p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Overall Status</div>
+              <div className="mt-2 text-3xl font-semibold">{evidence?.overall_status ?? "Checking"}</div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Evidence from local reports: pipeline manifest, DQ report, benchmark, model artifacts, and Gold freshness.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-secondary px-4 py-3 text-sm text-muted-foreground">
+              Latest pipeline: {evidence?.pipeline_run_manifest.end_time_utc ? formatAge(evidence.pipeline_run_manifest.end_time_utc) : "not available"}
+            </div>
+          </div>
+          {(evidence?.reasons?.length ?? 0) > 0 && (
+            <div className="mt-4 grid gap-2">
+              {evidence?.reasons.map((reason) => (
+                <div key={reason} className="rounded-xl border border-warning/30 bg-[oklch(0.95_0.08_70)] px-3 py-2 text-sm text-[oklch(0.45_0.15_70)]">
+                  {reason}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="col-span-12 grid grid-cols-2 gap-3 md:grid-cols-4">
           <SummaryCard icon={Activity} label="API uptime" value={formatSeconds(system?.api.uptime_seconds)} detail={system?.api.status ?? "unknown"} tone={system?.api.status === "ok" ? "success" : "warning"} loading={loading} />
           <SummaryCard icon={Database} label="Gold records" value={formatCount(system?.data.gold_row_count ?? quality?.record_count)} detail={`${formatCount(system?.data.segment_count ?? quality?.segments)} segments`} tone="primary" loading={loading} />
-          <SummaryCard icon={CheckCircle2} label="Model loaded" value={system?.model.loaded ? "Loaded" : "Not loaded"} detail={system?.model.model_name ?? `${model?.models.length ?? 0} horizons`} tone={system?.model.loaded || model?.ready ? "success" : "warning"} loading={loading} />
-          <SummaryCard icon={Zap} label="Data freshness" value={system?.data.latest_data_timestamp ? formatAge(system.data.latest_data_timestamp) : formatAge(latestTraffic?.last_update)} detail={system?.data.status ?? latestTraffic?.status ?? "unknown"} tone={(system?.data.status ?? latestTraffic?.status) === "ok" || latestTraffic?.status === "healthy" ? "success" : "warning"} loading={loading} />
+          <SummaryCard icon={CheckCircle2} label="Model artifact" value={evidence?.model.status ?? (system?.model.loaded ? "available" : "not loaded")} detail={evidence?.model.artifact_version ?? system?.model.model_name ?? `${model?.models.length ?? 0} horizons`} tone={evidence?.model.status === "available" || system?.model.loaded || model?.ready ? "success" : "warning"} loading={loading} />
+          <SummaryCard icon={Zap} label="Data freshness" value={evidence?.data_freshness.age_hours != null ? `${evidence.data_freshness.age_hours.toFixed(1)}h` : system?.data.latest_data_timestamp ? formatAge(system.data.latest_data_timestamp) : formatAge(latestTraffic?.last_update)} detail={evidence?.data_freshness.status ?? system?.data.status ?? latestTraffic?.status ?? "unknown"} tone={(evidence?.data_freshness.status ?? system?.data.status ?? latestTraffic?.status) === "fresh" || system?.data.status === "ok" || latestTraffic?.status === "healthy" ? "success" : "warning"} loading={loading} />
         </div>
 
         <div className="col-span-12 grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <QualityTile label="Feature coverage" value={formatPercent(system?.model.average_feature_coverage_ratio)} detail={system?.model.feature_coverage_status ?? "not measured"} />
-          <QualityTile label="Forecast p95" value={formatMs(system?.performance.forecast_p95_ms)} detail={system?.performance.status ?? "not measured"} />
-          <QualityTile label="Hotspots p95" value={formatMs(system?.performance.predicted_hotspots_p95_ms)} detail={system?.performance.last_benchmark_at ? `measured ${formatAge(system.performance.last_benchmark_at)}` : "not measured"} />
-          <QualityTile label="Streaming" value={system?.streaming.kafka_enabled ? "Enabled" : "Not enabled"} detail={system?.streaming.status ?? "not available"} />
+          <QualityTile label="Benchmark p50" value={formatMs(evidence?.api_benchmark.p50_ms)} detail={evidence?.api_benchmark.status ?? system?.performance.status ?? "not measured"} />
+          <QualityTile label="Benchmark p95" value={formatMs(evidence?.api_benchmark.p95_ms ?? system?.performance.forecast_p95_ms)} detail={system?.performance.last_benchmark_at ? `measured ${formatAge(system.performance.last_benchmark_at)}` : "not measured"} />
+          <QualityTile label="Bounded replay" value={evidence?.streaming_demo.status ?? "not run"} detail={evidence?.streaming_demo.mode ?? "Kafka demo only"} />
           <QualityTile label="Local stack" value={system?.local_stack?.status ?? "unknown"} detail={Object.keys(system?.local_stack?.components ?? {}).join(", ") || "not reported"} />
-          <QualityTile label="Cloud stack" value={system?.cloud?.status ?? "unknown"} detail={`S3 ${system?.cloud?.s3.status ?? "n/a"} · Aura ${system?.cloud?.neo4j_aura.status ?? "n/a"}`} />
+          <QualityTile label="Cloud/lakehouse" value={system?.cloud?.status ?? "future"} detail={`S3 ${system?.cloud?.s3.status ?? "future"} · Aura ${system?.cloud?.neo4j_aura.status ?? "future"}`} />
+        </div>
+
+        <div className="col-span-12 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <QualityTile label="Pipeline manifest" value={evidence?.pipeline_run_manifest.status ?? "not available"} detail={evidence?.pipeline_run_manifest.run_id ?? "reports/pipeline_run_manifest.json"} />
+          <QualityTile label="DQ report" value={evidence?.dq_report.status ?? "not available"} detail={`${evidence?.dq_report.warning_count ?? 0} warnings · ${evidence?.dq_report.critical_failure_count ?? 0} critical`} />
+          <QualityTile label="Kafka counts" value={`${evidence?.streaming_demo.counts?.produced ?? 0} produced`} detail={`${evidence?.streaming_demo.counts?.dlq_written ?? 0} DLQ · ${evidence?.streaming_demo.counts?.validation_errors ?? 0} validation errors`} />
         </div>
 
         <div className="col-span-12 rounded-3xl bg-card p-6 lg:col-span-8">

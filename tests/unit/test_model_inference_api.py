@@ -102,6 +102,32 @@ def test_model_status_alias_endpoint_reports_240m_readiness():
     assert "240m" in payload["horizons"]
 
 
+def test_health_endpoint_reports_dependency_status():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "data" in payload
+    assert "model" in payload
+    assert "graph" in payload
+    assert "mlflow" in payload
+    assert "freshness_status" in payload["data"]
+
+
+def test_model_explain_endpoint_returns_501_until_shap_is_available():
+    response = client.get("/model/explain/HN_001?horizon=15m")
+
+    assert response.status_code == 501
+    assert "SHAP" in response.json()["error"]["message"]
+
+
+def test_model_explain_invalid_horizon_returns_400():
+    response = client.get("/model/explain/HN_001?horizon=999m")
+
+    assert response.status_code == 400
+    assert "15m, 60m, or 240m" in response.json()["error"]
+
+
 def test_graph_and_corridor_cognitive_endpoints_do_not_crash():
     segment_response = client.get("/traffic/segments?city=hanoi&limit=1")
     assert segment_response.status_code == 200

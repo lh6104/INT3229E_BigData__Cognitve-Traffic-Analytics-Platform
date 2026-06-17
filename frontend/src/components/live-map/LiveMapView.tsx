@@ -303,10 +303,12 @@ function densityLimit(density: CoverageDensity, zoom: number) {
 
 export function LiveMapView({
   onViewForecast,
+  onViewExplanation,
   city: cityProp,
   onCityChange,
 }: {
   onViewForecast: (segmentId: string) => void;
+  onViewExplanation: (segmentId: string) => void;
   city?: City;
   onCityChange?: (city: City) => void;
 }) {
@@ -582,7 +584,7 @@ export function LiveMapView({
             <span className="font-semibold text-foreground">{filteredSegments.length} displayed road segments</span>
             <span>Coverage mode: {coverageDensity}</span>
             <span>Zoom: {Math.round(zoom)}</span>
-            <span>Road geometry: OSM/local Gold/curated</span>
+            <span>Road geometry: OSM/local curated demo</span>
             <span>Traffic source: {dataSourceLabel}</span>
             <span>Last updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
           </div>
@@ -696,7 +698,7 @@ export function LiveMapView({
             <MapLegend dataSourceLabel={dataSourceLabel} />
             {(segmentsLoading || hotspotsLoading || isRefreshing) && (
               <div className="absolute right-4 top-4 z-[1000] rounded-2xl bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow backdrop-blur">
-                Loading live map data...
+                Loading local map snapshot...
               </div>
             )}
           </div>
@@ -708,6 +710,7 @@ export function LiveMapView({
               segment={selected}
               onClose={() => setSelectedId(null)}
               onViewForecast={onViewForecast}
+              onViewExplanation={onViewExplanation}
               topCongested={topCongested}
               onSelectSegment={setSelectedId}
             />
@@ -753,7 +756,7 @@ function KpiCard({
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${toneClass}`}>
           <Icon className="h-4 w-4" />
         </div>
-        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">LIVE</span>
+        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">LOCAL</span>
       </div>
       <div className="mt-3 text-[11px] font-medium text-muted-foreground">{title}</div>
       <div className="mt-1 text-2xl font-semibold">{value}</div>
@@ -829,12 +832,14 @@ function SegmentDetail({
   segment,
   onClose,
   onViewForecast,
+  onViewExplanation,
   topCongested,
   onSelectSegment,
 }: {
   segment: SegmentView;
   onClose: () => void;
   onViewForecast: (id: string) => void;
+  onViewExplanation: (id: string) => void;
   topCongested: SegmentView[];
   onSelectSegment: (id: string) => void;
 }) {
@@ -872,6 +877,9 @@ function SegmentDetail({
       <div className="mt-4 rounded-2xl border border-border bg-secondary/40 p-3 text-xs font-medium leading-relaxed text-foreground">
         {insight}
       </div>
+      <div className="mt-3 rounded-2xl border border-border p-3 text-xs text-muted-foreground">
+        Road geometry: OSM/local curated demo · Data source: {segment.source ?? "gold_local"} · Last updated {Number.isNaN(updated.getTime()) ? "n/a" : updated.toLocaleString()}
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <MetricTile icon={Gauge} label="Current speed" value={`${segment.currentSpeed.toFixed(1)} km/h`} />
@@ -902,12 +910,33 @@ function SegmentDetail({
 
       <TopCongestedList segments={topCongested} onSelectSegment={onSelectSegment} />
 
-      <button
-        onClick={() => onViewForecast(segment.segment_id)}
-        className="mt-4 w-full rounded-xl bg-foreground py-3 text-sm font-semibold text-background hover:opacity-90"
-      >
-        View Forecast
-      </button>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => onViewForecast(segment.segment_id)}
+          className="rounded-xl bg-foreground py-3 text-sm font-semibold text-background hover:opacity-90"
+        >
+          Open Forecast
+        </button>
+        <button
+          onClick={() => onViewExplanation(segment.segment_id)}
+          className="rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary"
+        >
+          Open Explanation
+        </button>
+        <button
+          disabled
+          title="Manual alert creation is not implemented; generated alerts come from local Gold rules."
+          className="rounded-xl border border-border py-3 text-sm font-semibold text-muted-foreground opacity-70"
+        >
+          Create Alert
+        </button>
+        <button
+          onClick={() => navigator.clipboard?.writeText(segment.segment_id)}
+          className="rounded-xl border border-border py-3 text-sm font-semibold hover:bg-secondary"
+        >
+          Copy Segment ID
+        </button>
+      </div>
     </div>
   );
 }
@@ -937,7 +966,7 @@ function EmptyPanel({
         <MapPin className="h-8 w-8 text-primary" />
         <div className="mt-3 text-sm font-semibold">Select a road segment</div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Inspect live speed, jam factor, weather context, alert status, and recent trends for each monitored corridor.
+          Inspect snapshot speed, jam factor, weather context, alert status, and recent trends for each monitored corridor.
         </p>
       </div>
       <div className="mt-4 rounded-2xl border border-border p-4 text-xs">
@@ -948,7 +977,7 @@ function EmptyPanel({
           <InfoRow label="Coverage mode" value={coverageDensity} />
           <InfoRow label="Active alerts" value={String(alerts)} />
           <InfoRow label="Weather overlay" value={weatherAvailable ? "Available" : "Unavailable"} />
-          <InfoRow label="Road geometry" value="OSM/local Gold/curated" />
+          <InfoRow label="Road geometry" value="OSM/local curated demo" />
           <InfoRow label="Traffic source" value={dataSourceLabel} />
         </div>
       </div>

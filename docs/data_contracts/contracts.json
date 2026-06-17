@@ -1,0 +1,102 @@
+{
+  "bronze": {
+    "required_columns": ["topic", "ingested_at_utc", "payload"],
+    "primary_key": ["topic", "idempotency_key"],
+    "timestamp_column": "event_time_utc",
+    "nullable": {
+      "topic": false,
+      "ingested_at_utc": false,
+      "payload": false,
+      "idempotency_key": false,
+      "event_time_utc": false
+    },
+    "types": {
+      "topic": "string",
+      "ingested_at_utc": "timestamp",
+      "event_time_utc": "timestamp",
+      "payload": "object",
+      "idempotency_key": "string"
+    },
+    "ranges": {}
+  },
+  "silver": {
+    "required_columns": ["city", "segment_id", "time_bucket", "currentSpeed", "freeFlowSpeed", "jamFactor"],
+    "primary_key": ["city", "segment_id", "time_bucket"],
+    "timestamp_column": "time_bucket",
+    "freshness_warning_hours": 168,
+    "nullable": {
+      "city": false,
+      "segment_id": false,
+      "time_bucket": false,
+      "currentSpeed": false,
+      "freeFlowSpeed": false,
+      "jamFactor": false
+    },
+    "types": {
+      "city": "string",
+      "segment_id": "string",
+      "time_bucket": "timestamp",
+      "currentSpeed": "numeric",
+      "freeFlowSpeed": "numeric",
+      "jamFactor": "numeric",
+      "temp": "numeric",
+      "humidity": "numeric"
+    },
+    "ranges": {
+      "currentSpeed": [0, 150],
+      "freeFlowSpeed": [1, 180],
+      "jamFactor": [0, 10],
+      "temp": [-50, 60],
+      "humidity": [0, 100]
+    }
+  },
+  "gold": {
+    "required_columns": ["city", "segment_id", "time_bucket", "currentSpeed", "freeFlowSpeed", "jamFactor"],
+    "primary_key": ["city", "segment_id", "time_bucket"],
+    "timestamp_column": "time_bucket",
+    "freshness_warning_hours": 168,
+    "nullable": {
+      "city": false,
+      "segment_id": false,
+      "time_bucket": false,
+      "currentSpeed": false,
+      "freeFlowSpeed": false,
+      "jamFactor": false
+    },
+    "types": {
+      "city": "string",
+      "segment_id": "string",
+      "time_bucket": "timestamp",
+      "currentSpeed": "numeric",
+      "freeFlowSpeed": "numeric",
+      "jamFactor": "numeric",
+      "weather_temperature": "numeric",
+      "weather_humidity": "numeric"
+    },
+    "ranges": {
+      "currentSpeed": [0, 150],
+      "freeFlowSpeed": [1, 180],
+      "jamFactor": [0, 10],
+      "weather_temperature": [-50, 60],
+      "weather_humidity": [0, 100]
+    },
+    "referential_checks": {
+      "silver_traffic": {
+        "path": "data/silver/traffic_cleaned",
+        "key": ["city", "segment_id", "time_bucket"],
+        "warning_threshold": 0.95
+      },
+      "silver_weather": {
+        "path": "data/silver/weather_cleaned",
+        "key": ["city", "weather_cell_id"],
+        "warning_threshold": 0.75,
+        "skip_if_missing_columns": true
+      },
+      "event_features": {
+        "path": "data/gold/traffic_event_features",
+        "key": ["city", "segment_id", "time_bucket"],
+        "warning_threshold": 0.90
+      }
+    }
+  }
+}

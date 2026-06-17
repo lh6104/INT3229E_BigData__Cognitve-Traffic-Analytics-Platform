@@ -41,13 +41,13 @@ In another terminal:
 ```bash
 cd frontend
 bun install
-VITE_API_BASE_URL=http://localhost:8000 bun run dev --host 0.0.0.0 --port 8080
+VITE_API_BASE_URL=http://localhost:8000 bun run dev --host 0.0.0.0 --port 5173
 ```
 
 Open:
 
 ```text
-http://localhost:8080
+http://localhost:5173
 ```
 
 ## API Docs
@@ -141,7 +141,7 @@ make demo-check
 Run endpoint benchmark evidence:
 
 ```bash
-make benchmark-demo
+make benchmark
 ```
 
 Run minimal Kafka evidence if Kafka is already running:

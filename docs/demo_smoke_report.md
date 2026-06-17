@@ -1,7 +1,7 @@
 # Demo Smoke Report
 
-Generated at: 2026-06-13T23:27:01.606559+00:00
-Base URL: `http://localhost:8000`
+Generated at: 2026-06-17T20:48:30.859068+00:00
+Base URL: `http://127.0.0.1:8001`
 
 | Check | Status | Detail |
 |---|---|---|
@@ -9,18 +9,18 @@ Base URL: `http://localhost:8000`
 | Dashboard summary | PASS | summary returned |
 | GeoJSON Hanoi real | PASS | 10 features |
 | GeoJSON HCMC real | PASS | 10 features |
-| GeoJSON HCMC expanded | PASS | 620 features |
+| Live Map clean roads | PASS | road-shaped live map segments only |
 | Traffic segments | PASS | segments > 0 |
-| Forecast 15m | PASS | model=extra_trees, coverage=62/62, latency_ms=2968.9 |
-| Forecast 60m | PASS | model=extra_trees, coverage=62/62, latency_ms=594.7 |
-| Forecast reliability | PASS | model=extra_trees, coverage=62/62, latency_ms=45.9 |
+| Forecast 15m | PASS | model=extra_trees, coverage=62/62, latency_ms=711.3 |
+| Forecast 60m | PASS | model=extra_trees, coverage=62/62, latency_ms=37.8 |
+| Forecast reliability | PASS | model=extra_trees, coverage=62/62, latency_ms=28.8 |
 | Predicted hotspots | PASS | risk list returned |
 | Model status | PASS | model status returned |
 | Graph propagation | PASS | propagation returned |
 | Corridor risk | PASS | corridor risk returned |
 | System status | PASS | system status returned |
 | What-if simulation | PASS | scenario impact returned |
-| Frontend build | PASS | npm run build completed in 57.56s |
+| Frontend build | PASS | npm run build completed in 7.32s |
 
 Overall status: **PASS**
 

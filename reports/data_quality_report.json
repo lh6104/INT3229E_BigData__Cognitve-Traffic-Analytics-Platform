@@ -1,0 +1,198 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-17T20:47:57.443965+00:00",
+    "layer": "gold",
+    "dataset": null,
+    "input": "data/gold/cleaned_traffic_features",
+    "rows": 3192,
+    "contract": "docs/data_contracts/contracts.yaml"
+  },
+  "results": [
+    {
+      "name": "required_columns",
+      "status": "PASS",
+      "detail": "missing=[]",
+      "critical": true
+    },
+    {
+      "name": "null_ratio",
+      "status": "PASS",
+      "detail": "threshold=0.05 ratios={'city': 0.0, 'segment_id': 0.0, 'time_bucket': 0.0, 'currentSpeed': 0.0, 'freeFlowSpeed': 0.0, 'jamFactor': 0.0}",
+      "critical": true
+    },
+    {
+      "name": "nullable_contract",
+      "status": "PASS",
+      "detail": "non_null_violations={}",
+      "critical": true
+    },
+    {
+      "name": "duplicate_key",
+      "status": "PASS",
+      "detail": "key=['city', 'segment_id', 'time_bucket'] duplicates=0",
+      "critical": true
+    },
+    {
+      "name": "timestamp_order",
+      "status": "PASS",
+      "detail": "nulls=0 inversions=0",
+      "critical": true
+    },
+    {
+      "name": "feature_leakage",
+      "status": "PASS",
+      "detail": "suspicious_columns=[]",
+      "critical": true
+    },
+    {
+      "name": "freshness",
+      "status": "PASS",
+      "detail": "timestamp_column=time_bucket max_timestamp=2026-06-12T08:15:00+00:00 age_hours=132.55 warning_hours=168",
+      "critical": false
+    },
+    {
+      "name": "city_type",
+      "status": "PASS",
+      "detail": "expected=string invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "segment_id_type",
+      "status": "PASS",
+      "detail": "expected=string invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "time_bucket_type",
+      "status": "PASS",
+      "detail": "expected=timestamp invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "currentSpeed_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "freeFlowSpeed_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "jamFactor_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "weather_temperature_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "weather_humidity_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "has_any_event_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "news_event_count_1h_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "future_speed_15m_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "future_speed_60m_type",
+      "status": "PASS",
+      "detail": "expected=numeric invalid_rows=0",
+      "critical": true
+    },
+    {
+      "name": "currentSpeed_range",
+      "status": "PASS",
+      "detail": "min=0 max=150 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "freeFlowSpeed_range",
+      "status": "PASS",
+      "detail": "min=1 max=180 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "jamFactor_range",
+      "status": "PASS",
+      "detail": "min=0 max=10 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "weather_temperature_range",
+      "status": "PASS",
+      "detail": "min=-50 max=60 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "weather_humidity_range",
+      "status": "PASS",
+      "detail": "min=0 max=100 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "has_any_event_range",
+      "status": "PASS",
+      "detail": "min=0 max=1 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "news_event_count_1h_range",
+      "status": "PASS",
+      "detail": "min=0 max=None bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "future_speed_15m_range",
+      "status": "PASS",
+      "detail": "min=0 max=150 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "future_speed_60m_range",
+      "status": "PASS",
+      "detail": "min=0 max=150 bad_rows=0",
+      "critical": true
+    },
+    {
+      "name": "weather_feature_coverage",
+      "status": "PASS",
+      "detail": "missing_ratios={'weather_temperature': 0.06015037593984962, 'weather_humidity': 0.06015037593984962, 'weather_rain_1h': 0.06015037593984962} warn_threshold=0.2",
+      "critical": false
+    },
+    {
+      "name": "event_feature_coverage",
+      "status": "PASS",
+      "detail": "missing_ratios={'has_any_event': 0.0, 'news_event_count_1h': 0.0, 'max_event_severity_1h': 0.0} warn_threshold=0.2",
+      "critical": false
+    },
+    {
+      "name": "segment_time_bucket_coverage",
+      "status": "PASS",
+      "detail": "{'segments': 147, 'median_buckets': 2.0, 'lowest_segments': {}}",
+      "critical": false
+    }
+  ]
+}

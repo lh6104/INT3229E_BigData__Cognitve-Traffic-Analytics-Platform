@@ -31,12 +31,15 @@ function LiveMap() {
   }, [city, setSelectedCity]);
 
   return (
-    <PlaceholderPage title="Live Map" subtitle="Real-time congestion across monitored cities">
+    <PlaceholderPage title="Live Map" subtitle="Local traffic snapshot across monitored demo cities">
       <ClientLiveMapView
         city={KEY_TO_LABEL[city]}
         onCityChange={(label) => navigate({ search: { city: LABEL_TO_KEY[label] } })}
         onViewForecast={(id: string) =>
           navigate({ to: "/forecast", search: { city: city === "all" ? "hanoi" : city, segment: id } })
+        }
+        onViewExplanation={(id: string) =>
+          navigate({ to: "/explanations", search: { city: city === "all" ? "hanoi" : city, segment: id, horizon: "15m" } })
         }
       />
     </PlaceholderPage>
@@ -47,6 +50,7 @@ function ClientLiveMapView(props: {
   city: MapCityLabel;
   onCityChange: (city: MapCityLabel) => void;
   onViewForecast: (segmentId: string) => void;
+  onViewExplanation: (segmentId: string) => void;
 }) {
   const [LiveMapView, setLiveMapView] = useState<null | ComponentType<typeof props>>(null);
 

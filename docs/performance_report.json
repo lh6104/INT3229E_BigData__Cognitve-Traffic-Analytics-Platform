@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T01:24:52.317015+00:00",
+  "generated_at": "2026-06-16T19:00:44.125385+00:00",
   "base_url": "http://localhost:8000",
   "runs": 20,
   "endpoints": [
@@ -11,10 +11,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 0.5,
-      "p95_ms": 0.88,
-      "avg_ms": 0.63,
-      "payload_size_kb": 0.1,
+      "p50_ms": 7.58,
+      "p95_ms": 12.84,
+      "avg_ms": 8.45,
+      "payload_size_kb": 0.47,
       "error": null
     },
     {
@@ -25,9 +25,9 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 12.37,
-      "p95_ms": 118.64,
-      "avg_ms": 33.03,
+      "p50_ms": 7.04,
+      "p95_ms": 10.85,
+      "avg_ms": 8.82,
       "payload_size_kb": 0.26,
       "error": null
     },
@@ -39,10 +39,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 37.36,
-      "p95_ms": 90.19,
-      "avg_ms": 46.92,
-      "payload_size_kb": 491.89,
+      "p50_ms": 8.96,
+      "p95_ms": 9.83,
+      "avg_ms": 9.04,
+      "payload_size_kb": 5.07,
       "error": null
     },
     {
@@ -53,10 +53,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 33.69,
-      "p95_ms": 131.99,
-      "avg_ms": 59.17,
-      "payload_size_kb": 496.02,
+      "p50_ms": 9.27,
+      "p95_ms": 9.66,
+      "avg_ms": 9.2,
+      "payload_size_kb": 5.11,
       "error": null
     },
     {
@@ -67,10 +67,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 37.18,
-      "p95_ms": 82.69,
-      "avg_ms": 43.93,
-      "payload_size_kb": 520.13,
+      "p50_ms": 43.98,
+      "p95_ms": 51.64,
+      "avg_ms": 46.53,
+      "payload_size_kb": 231.05,
       "error": null
     },
     {
@@ -81,10 +81,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 11.19,
-      "p95_ms": 25.27,
-      "avg_ms": 14.91,
-      "payload_size_kb": 8.96,
+      "p50_ms": 8.48,
+      "p95_ms": 10.83,
+      "avg_ms": 9.76,
+      "payload_size_kb": 1.86,
       "error": null
     },
     {
@@ -95,10 +95,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 17.45,
-      "p95_ms": 23.03,
-      "avg_ms": 18.16,
-      "payload_size_kb": 0.91,
+      "p50_ms": 15.71,
+      "p95_ms": 60.82,
+      "avg_ms": 57.08,
+      "payload_size_kb": 1.36,
       "error": null
     },
     {
@@ -109,10 +109,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 16.76,
-      "p95_ms": 23.34,
-      "avg_ms": 17.77,
-      "payload_size_kb": 0.91,
+      "p50_ms": 16.48,
+      "p95_ms": 22.65,
+      "avg_ms": 18.15,
+      "payload_size_kb": 1.36,
       "error": null
     },
     {
@@ -123,10 +123,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 1.11,
-      "p95_ms": 1.86,
-      "avg_ms": 1.15,
-      "payload_size_kb": 84.32,
+      "p50_ms": 0.61,
+      "p95_ms": 6.08,
+      "avg_ms": 2.44,
+      "payload_size_kb": 2.39,
       "error": null
     },
     {
@@ -137,10 +137,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 4.46,
-      "p95_ms": 5.62,
-      "avg_ms": 4.67,
-      "payload_size_kb": 2.27,
+      "p50_ms": 1.46,
+      "p95_ms": 1.78,
+      "avg_ms": 1.51,
+      "payload_size_kb": 1.33,
       "error": null
     },
     {
@@ -151,10 +151,10 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 360.28,
-      "p95_ms": 410.48,
-      "avg_ms": 362.73,
-      "payload_size_kb": 1.49,
+      "p50_ms": 161.32,
+      "p95_ms": 175.83,
+      "avg_ms": 163.15,
+      "payload_size_kb": 2.34,
       "error": null
     }
   ],
@@ -162,28 +162,28 @@
     "model_runtime": {
       "status": "measured_in_benchmark_process",
       "model_load_time_ms": {
-        "15m": 594.58,
-        "60m": 27.25
+        "15m": 576.71,
+        "60m": 12.28
       },
       "model_inference_time_ms": {
-        "15m": 163.57,
-        "60m": 20.62
+        "15m": 31.1,
+        "60m": 12.25
       }
     },
     "api_memory_after_model_load": {
       "status": "measured_from_procfs",
-      "total_rss_mb": 123.11,
+      "total_rss_mb": 307.25,
       "processes": [
         {
-          "pid": 233117,
-          "rss_mb": 123.11,
-          "cmd": "/home/longha/miniforge3/envs/traffic/bin/python3.11 /home/longha/miniforge3/envs/traffic/bin/uvicorn api.main:app --reload --host 127.0.0.1 --port 8000 "
+          "pid": 69830,
+          "rss_mb": 307.25,
+          "cmd": "/usr/local/bin/python /usr/local/bin/uvicorn api.main:app --host 0.0.0.0 --port 8000 "
         }
       ]
     },
     "frontend_build": {
       "status": "PASS",
-      "detail": "npm run build completed in 7.05s"
+      "detail": "npm run build completed in 7.45s"
     }
   }
 }

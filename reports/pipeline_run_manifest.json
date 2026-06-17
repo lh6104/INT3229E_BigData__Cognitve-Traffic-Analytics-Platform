@@ -1,0 +1,163 @@
+{
+  "run_id": "local_20260617T191004Z",
+  "status": "success",
+  "start_time_utc": "2026-06-17T19:10:04.176407+00:00",
+  "end_time_utc": "2026-06-17T19:10:16.248497+00:00",
+  "duration_seconds": 12.072,
+  "raw_dir": "raw",
+  "output_dir": "data",
+  "stages": [
+    {
+      "run_id": "local_20260617T191004Z",
+      "stage_name": "raw_to_bronze_news",
+      "status": "success",
+      "start_time_utc": "2026-06-17T19:10:04.176432+00:00",
+      "end_time_utc": "2026-06-17T19:10:04.805264+00:00",
+      "duration_seconds": 0.637,
+      "input_paths": [
+        "raw/events/*.jsonl"
+      ],
+      "output_paths": [
+        "data/bronze/news_bronze_raw_enhanced",
+        "data/bronze/news_bronze_quality_report"
+      ],
+      "row_counts": {
+        "data/bronze/news_bronze_raw_enhanced": 333,
+        "data/bronze/news_bronze_quality_report": 57
+      },
+      "warnings": [],
+      "errors": [],
+      "command": [
+        "/home/longha/miniforge3/envs/traffic/bin/python",
+        "scripts/build_news_bronze.py",
+        "--raw-dir",
+        "raw",
+        "--output-dir",
+        "data"
+      ]
+    },
+    {
+      "run_id": "local_20260617T191004Z",
+      "stage_name": "silver_news_gold_event_features",
+      "status": "success",
+      "start_time_utc": "2026-06-17T19:10:04.813592+00:00",
+      "end_time_utc": "2026-06-17T19:10:12.206452+00:00",
+      "duration_seconds": 7.395,
+      "input_paths": [
+        "raw/events/*.jsonl",
+        "raw/traffic/*.jsonl"
+      ],
+      "output_paths": [
+        "data/silver/news_events_normalized",
+        "data/gold/traffic_event_features",
+        "data/gold/news_event_quality_report"
+      ],
+      "row_counts": {
+        "data/silver/news_events_normalized": 333,
+        "data/gold/traffic_event_features": 3192,
+        "data/gold/news_event_quality_report": 55
+      },
+      "warnings": [],
+      "errors": [],
+      "command": [
+        "/home/longha/miniforge3/envs/traffic/bin/python",
+        "scripts/build_news_event_features.py",
+        "--raw-dir",
+        "raw",
+        "--output-dir",
+        "data"
+      ]
+    },
+    {
+      "run_id": "local_20260617T191004Z",
+      "stage_name": "silver_traffic_weather_gold_features",
+      "status": "success",
+      "start_time_utc": "2026-06-17T19:10:12.208388+00:00",
+      "end_time_utc": "2026-06-17T19:10:16.245399+00:00",
+      "duration_seconds": 4.04,
+      "input_paths": [
+        "raw/traffic/*.jsonl",
+        "raw/weather/*.jsonl"
+      ],
+      "output_paths": [
+        "data/silver/traffic_cleaned",
+        "data/silver/weather_cleaned",
+        "data/gold/cleaned_traffic_features",
+        "data/gold/train_features_15m",
+        "data/gold/train_features_60m"
+      ],
+      "row_counts": {
+        "data/silver/traffic_cleaned": 3192,
+        "data/silver/weather_cleaned": 601,
+        "data/gold/cleaned_traffic_features": 3192,
+        "data/gold/train_features_15m": 1690,
+        "data/gold/train_features_60m": 910
+      },
+      "warnings": [],
+      "errors": [],
+      "command": [
+        "/home/longha/miniforge3/envs/traffic/bin/python",
+        "scripts/build_local_gold_dataset.py",
+        "--raw-dir",
+        "raw",
+        "--output-dir",
+        "data"
+      ]
+    }
+  ],
+  "key_outputs": [
+    {
+      "path": "data/bronze/news_bronze_raw_enhanced",
+      "resolved_path": "data/bronze/news_bronze_raw_enhanced.parquet",
+      "exists": true,
+      "rows": 333
+    },
+    {
+      "path": "data/silver/traffic_cleaned",
+      "resolved_path": "data/silver/traffic_cleaned.parquet",
+      "exists": true,
+      "rows": 3192
+    },
+    {
+      "path": "data/silver/weather_cleaned",
+      "resolved_path": "data/silver/weather_cleaned.parquet",
+      "exists": true,
+      "rows": 601
+    },
+    {
+      "path": "data/silver/news_events_normalized",
+      "resolved_path": "data/silver/news_events_normalized.parquet",
+      "exists": true,
+      "rows": 333
+    },
+    {
+      "path": "data/gold/cleaned_traffic_features",
+      "resolved_path": "data/gold/cleaned_traffic_features.parquet",
+      "exists": true,
+      "rows": 3192
+    },
+    {
+      "path": "data/gold/traffic_event_features",
+      "resolved_path": "data/gold/traffic_event_features.parquet",
+      "exists": true,
+      "rows": 3192
+    },
+    {
+      "path": "data/gold/train_features_15m",
+      "resolved_path": "data/gold/train_features_15m.parquet",
+      "exists": true,
+      "rows": 1690
+    },
+    {
+      "path": "data/gold/train_features_60m",
+      "resolved_path": "data/gold/train_features_60m.parquet",
+      "exists": true,
+      "rows": 910
+    }
+  ],
+  "summary": {
+    "gold_rows": 3192,
+    "train_15m_rows": 1690,
+    "train_60m_rows": 910
+  }
+}

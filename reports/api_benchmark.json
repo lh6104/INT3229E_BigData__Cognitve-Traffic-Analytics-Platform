@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-06-17T20:48:26.713165+00:00",
+  "base_url": "http://127.0.0.1:8001",
+  "requests_per_endpoint": 20,
+  "endpoints": [
+    {
+      "endpoint": "/health",
+      "requests": 20,
+      "success_rate": 1.0,
+      "error_count": 0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 1.17,
+      "p95_ms": 6.03,
+      "min_ms": 0.89,
+      "max_ms": 10.02,
+      "avg_ms": 2.06,
+      "first_error": null
+    },
+    {
+      "endpoint": "/system/status",
+      "requests": 20,
+      "success_rate": 1.0,
+      "error_count": 0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 146.47,
+      "p95_ms": 336.0,
+      "min_ms": 122.29,
+      "max_ms": 1026.23,
+      "avg_ms": 196.14,
+      "first_error": null
+    },
+    {
+      "endpoint": "/dashboard/summary?city=hanoi",
+      "requests": 20,
+      "success_rate": 1.0,
+      "error_count": 0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 18.52,
+      "p95_ms": 21.69,
+      "min_ms": 16.01,
+      "max_ms": 22.55,
+      "avg_ms": 18.76,
+      "first_error": null
+    },
+    {
+      "endpoint": "/traffic/predict/HN_005?horizon=15m",
+      "requests": 20,
+      "success_rate": 1.0,
+      "error_count": 0,
+      "status_codes": [
+        200
+      ],
+      "p50_ms": 12.16,
+      "p95_ms": 13.49,
+      "min_ms": 11.19,
+      "max_ms": 13.95,
+      "avg_ms": 12.27,
+      "first_error": null
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "horizon": "15m",
+    "measurement": "local_model_inference_plus_feature_lookup",
+    "requests": 25,
+    "mean_ms": 11.962,
+    "p95_ms": 14.467,
+    "min_ms": 11.226,
+    "max_ms": 15.396,
+    "errors": []
+  },
+  {
+    "horizon": "60m",
+    "measurement": "local_model_inference_plus_feature_lookup",
+    "requests": 25,
+    "mean_ms": 13.605,
+    "p95_ms": 16.499,
+    "min_ms": 11.386,
+    "max_ms": 18.126,
+    "errors": []
+  },
+  {
+    "horizon": "240m",
+    "measurement": "local_model_inference_plus_feature_lookup",
+    "requests": 25,
+    "mean_ms": 12.951,
+    "p95_ms": 21.026,
+    "min_ms": 10.922,
+    "max_ms": 23.863,
+    "errors": []
+  }
+]
