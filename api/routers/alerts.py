@@ -13,8 +13,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from api.services.local_data import DATA_DIR, DataUnavailableError, latest_by_segment, normalize_city, severity_from_jam, traffic_features
-from intelligence.risk_scoring import score_segment_risk
-from intelligence.smart_alert_reasoner import reason_about_alert
+from domain.intelligence.risk_scoring import score_segment_risk
+from domain.intelligence.smart_alert_reasoner import reason_about_alert
 
 logger = logging.getLogger(__name__)
 

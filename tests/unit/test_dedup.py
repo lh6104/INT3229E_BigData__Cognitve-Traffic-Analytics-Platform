@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from processing.silver.deduplicator import (
+from pipelines.processing.silver.deduplicator import (
     Deduplicator,
     _normalize_title,
     _simhash,
@@ -65,7 +65,7 @@ def _make_dedup() -> Deduplicator:
     redis_mock.get.side_effect = get
     redis_mock.scan.side_effect = scan
 
-    with patch("processing.silver.deduplicator.redis_lib.from_url", return_value=redis_mock):
+    with patch("pipelines.processing.silver.deduplicator.redis_lib.from_url", return_value=redis_mock):
         d = Deduplicator(redis_url="redis://fake:6379")
     return d
 

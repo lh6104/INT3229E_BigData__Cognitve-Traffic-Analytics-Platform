@@ -11,6 +11,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.ipynb_checkpoints/
 
 node_modules/
 frontend/node_modules/
@@ -29,8 +30,26 @@ temp/
 
 cta_training_outputs/
 result/cta_training_outputs_balanced_v3_latest/
+reports/tmp/
+reports/archive/
+reports/run_*/
+reports/**/*.jsonl
+raw/
+results/
+__results___files/
+__results__files/
+data/bronze/*.dlq.jsonl
+data/bronze/*bounded_test*.jsonl
+docker-data/
+postgres-data/
+redis-data/
+minio-data/
+neo4j-data/
+mlflow-artifacts/
 
 .DS_Store
 airflow.cfg
 
 PROJECT_A_TO_Z_ANALYSIS.md
+
+data/

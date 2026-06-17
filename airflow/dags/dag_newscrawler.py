@@ -57,9 +57,9 @@ def _fetch_source(source: dict, **ctx) -> list[dict]:
     """Fetch bài từ một source (rss hoặc html)."""
     import asyncio
 
-    from ingestion.producers.rss_fetcher import fetch_rss
-    from ingestion.producers.html_scraper import fetch_html, scrape_article_links
-    from ingestion.producers.article_parser import extract_content
+    from pipelines.ingestion.producers.rss_fetcher import fetch_rss
+    from pipelines.ingestion.producers.html_scraper import fetch_html, scrape_article_links
+    from pipelines.ingestion.producers.article_parser import extract_content
 
     source_name = source["name"]
     source_type = source["type"]
@@ -116,8 +116,8 @@ def _fetch_source(source: dict, **ctx) -> list[dict]:
 def _parse_articles(source_name: str, **ctx) -> list[dict]:
     """Lấy nội dung đầy đủ cho bài RSS (chỉ có summary)."""
     import asyncio
-    from ingestion.producers.html_scraper import fetch_html
-    from ingestion.producers.article_parser import extract_content
+    from pipelines.ingestion.producers.html_scraper import fetch_html
+    from pipelines.ingestion.producers.article_parser import extract_content
 
     articles: list[dict] = ctx["ti"].xcom_pull(key=f"articles_{source_name}")
     if not articles:
@@ -137,7 +137,7 @@ def _parse_articles(source_name: str, **ctx) -> list[dict]:
 
 
 def _dedup(source_name: str, **ctx) -> list[dict]:
-    from processing.silver.deduplicator import Deduplicator
+    from pipelines.processing.silver.deduplicator import Deduplicator
 
     articles: list[dict] = ctx["ti"].xcom_pull(key=f"parsed_{source_name}") or []
     dedup = Deduplicator()
@@ -163,10 +163,10 @@ def _dedup(source_name: str, **ctx) -> list[dict]:
 
 
 def _nlp_extract(source_name: str, **ctx) -> list[dict]:
-    from processing.silver.preprocessor import preprocess
-    from processing.silver.classifier import classify
-    from processing.silver.ner import detect_city, extract_locations
-    from processing.silver.severity import score_severity
+    from pipelines.processing.silver.preprocessor import preprocess
+    from pipelines.processing.silver.classifier import classify
+    from pipelines.processing.silver.ner import detect_city, extract_locations
+    from pipelines.processing.silver.severity import score_severity
     from models.event import City
 
     articles: list[dict] = ctx["ti"].xcom_pull(key=f"unique_{source_name}") or []
@@ -200,7 +200,7 @@ def _nlp_extract(source_name: str, **ctx) -> list[dict]:
 
 
 def _geocode(source_name: str, **ctx) -> list[dict]:
-    from processing.silver.geocoder import geocode_with_confidence
+    from pipelines.processing.silver.geocoder import geocode_with_confidence
 
     articles: list[dict] = ctx["ti"].xcom_pull(key=f"nlp_{source_name}") or []
     enriched = []
@@ -231,7 +231,7 @@ def _produce_to_kafka(source_name: str, **ctx) -> None:
     import uuid
     from datetime import datetime, timezone
 
-    from ingestion.kafka.producer import KafkaProducer
+    from pipelines.ingestion.kafka.producer import KafkaProducer
     from models.event import NewsEvent, EventType, City, GeocodeStatus
 
     articles: list[dict] = ctx["ti"].xcom_pull(key=f"geo_{source_name}") or []

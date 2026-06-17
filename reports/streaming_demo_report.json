@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-06-17T22:12:24.019640+00:00",
+  "overall_status": "PASS",
+  "kafka_enabled": true,
+  "run_id": "bounded-1781734344",
+  "topics": {
+    "traffic": "traffic.raw",
+    "weather": "weather.raw",
+    "news": "news.raw"
+  },
+  "dlq_topics": {
+    "traffic.raw": "traffic.raw.dlq",
+    "weather.raw": "weather.raw.dlq",
+    "news.raw": "news.raw.dlq"
+  },
+  "produced": 10,
+  "consumed": 45,
+  "bronze_written": 9,
+  "dlq_written": 1,
+  "validation_errors": 1,
+  "output": "data/bronze/streaming_bounded_test.jsonl",
+  "dlq_output": "data/bronze/streaming_bounded_test.dlq.jsonl"
+}

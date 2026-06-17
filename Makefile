@@ -2,7 +2,7 @@
 
 COMPOSE_CMD := docker compose -f docker-compose.yml
 PYTHON ?= /home/longha/miniforge3/envs/traffic/bin/python
-RAW_DIR ?= raw
+RAW_DIR ?= data/raw
 DATA_DIR ?= data
 API_BASE_URL ?= http://localhost:8000
 KAFKA_BOOTSTRAP_SERVERS ?= localhost:9092

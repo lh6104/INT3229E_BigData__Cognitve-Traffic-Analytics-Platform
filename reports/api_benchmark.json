@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-17T20:48:26.713165+00:00",
-  "base_url": "http://127.0.0.1:8001",
+  "generated_at": "2026-06-17T22:12:14.029851+00:00",
+  "base_url": "http://localhost:8000",
   "requests_per_endpoint": 20,
   "endpoints": [
     {
@@ -11,11 +11,11 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 1.17,
-      "p95_ms": 6.03,
-      "min_ms": 0.89,
-      "max_ms": 10.02,
-      "avg_ms": 2.06,
+      "p50_ms": 0.89,
+      "p95_ms": 1.32,
+      "min_ms": 0.8,
+      "max_ms": 5.07,
+      "avg_ms": 1.11,
       "first_error": null
     },
     {
@@ -26,11 +26,11 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 146.47,
-      "p95_ms": 336.0,
-      "min_ms": 122.29,
-      "max_ms": 1026.23,
-      "avg_ms": 196.14,
+      "p50_ms": 165.34,
+      "p95_ms": 209.81,
+      "min_ms": 148.26,
+      "max_ms": 226.04,
+      "avg_ms": 173.86,
       "first_error": null
     },
     {
@@ -41,11 +41,11 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 18.52,
-      "p95_ms": 21.69,
-      "min_ms": 16.01,
-      "max_ms": 22.55,
-      "avg_ms": 18.76,
+      "p50_ms": 6.96,
+      "p95_ms": 8.54,
+      "min_ms": 6.52,
+      "max_ms": 11.11,
+      "avg_ms": 7.29,
       "first_error": null
     },
     {
@@ -56,11 +56,11 @@
       "status_codes": [
         200
       ],
-      "p50_ms": 12.16,
-      "p95_ms": 13.49,
-      "min_ms": 11.19,
-      "max_ms": 13.95,
-      "avg_ms": 12.27,
+      "p50_ms": 15.97,
+      "p95_ms": 21.79,
+      "min_ms": 14.4,
+      "max_ms": 22.91,
+      "avg_ms": 17.11,
       "first_error": null
     }
   ]

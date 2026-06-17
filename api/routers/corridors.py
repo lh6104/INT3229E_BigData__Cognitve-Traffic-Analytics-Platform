@@ -3,7 +3,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from api.services.local_data import DataUnavailableError, latest_by_segment, normalize_city, traffic_features
-from intelligence.corridor_ranker import rank_corridors
+from domain.intelligence.corridor_ranker import rank_corridors
 
 
 router = APIRouter()

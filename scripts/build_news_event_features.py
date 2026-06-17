@@ -1,8 +1,8 @@
 """Normalize raw news JSONL into event signals and aggregate no-leakage features.
 
 Inputs:
-- raw/events/*.jsonl
-- raw/traffic/*.jsonl, only for the target city/segment/time_bucket grid
+- data/raw/events/*.jsonl
+- data/raw/traffic/*.jsonl, only for the target city/segment/time_bucket grid
 
 Outputs:
 - data/silver/news_events_normalized.{parquet,csv}
@@ -610,7 +610,7 @@ def build(raw_dir: Path, output_dir: Path, bucket_minutes: int) -> tuple[pd.Data
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build normalized news events and no-leakage traffic event features.")
-    parser.add_argument("--raw-dir", type=Path, default=Path("raw"))
+    parser.add_argument("--raw-dir", type=Path, default=Path("data/raw"))
     parser.add_argument("--output-dir", type=Path, default=Path("data"))
     parser.add_argument("--bucket-minutes", type=int, default=5)
     args = parser.parse_args()

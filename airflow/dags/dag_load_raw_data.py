@@ -26,13 +26,13 @@ dag = DAG(
 
 SPARK_SUBMIT = "spark-submit --master spark://spark-master:7077 --deploy-mode client --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0"
 WAREHOUSE = "s3a://lakehouse"
-RAW_DATA_DIR = "/opt/airflow/raw"
+RAW_DATA_DIR = "/opt/airflow/data/raw"
 
 load_raw_data = BashOperator(
     task_id="load_raw_data",
     bash_command=f"""
     {SPARK_SUBMIT} \
-        /opt/spark-apps/processing/batch_load/load_raw_data.py \
+        /opt/spark-apps/pipelines/processing/batch_load/load_raw_data.py \
         {RAW_DATA_DIR} \
         {WAREHOUSE}
     """,

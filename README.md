@@ -24,7 +24,7 @@ Các chức năng chính:
 
 Hệ thống được thiết kế theo kiến trúc nhiều thành phần, gồm pipeline xử lý dữ liệu, backend API, mô hình dự báo và dashboard giao thông.
 
-![Kiến trúc hệ thống](images/system_architecture.png)
+![Kiến trúc hệ thống](docs/assets/system_architecture.png)
 
 *Sơ đồ kiến trúc tổng quan của hệ thống Cognitive Traffic Analytics Platform.*
 
@@ -74,35 +74,43 @@ npm --version
 
 ---
 
-## 4. Cấu trúc thư mục dự án
+## 4. Repository Structure
 
 ```text
 cognitive-traffic-analytics/
-├── raw/                         # Dữ liệu nguồn ban đầu
-├── data/                        # Dữ liệu sau xử lý
-│   ├── bronze/                  # Dữ liệu ban đầu / chuẩn hóa bước đầu
-│   ├── silver/                  # Dữ liệu đã làm sạch
-│   └── gold/                    # Dữ liệu phục vụ dashboard và mô hình
-├── pipelines/                   # Pipeline xử lý dữ liệu
-│   ├── streaming/               # Kafka bounded replay demo
-│   ├── transformation/          # Xử lý raw -> silver -> gold
-│   └── quality/                 # Kiểm tra chất lượng dữ liệu
-├── api/                         # FastAPI backend
+├── .github/                     # CI workflows
+├── airflow/                     # Airflow DAGs for local orchestration
+├── api/                         # FastAPI backend and services
 ├── frontend/                    # React / Vite dashboard
-├── ml/                          # Huấn luyện và theo dõi mô hình
-├── models/                      # Model artifacts và metadata
-├── graph/                       # Neo4j graph analytics
-├── dags/                        # Airflow DAGs
-├── monitoring/                  # Cấu hình monitoring nếu có
-├── reports/                     # Báo cáo pipeline, DQ, benchmark
-├── docs/                        # Tài liệu chi tiết
-├── images/                      # Hình ảnh sử dụng trong README
-├── tests/                       # Unit test và smoke test
+├── pipelines/                   # Ingestion, streaming, transformation, quality workflows
+│   ├── ingestion/               # Source producers and batch importers
+│   ├── processing/              # Bronze/Silver/Gold Spark-oriented jobs
+│   ├── streaming/               # Kafka bounded replay demo
+│   ├── transformation/          # Default local raw JSONL -> Bronze/Silver/Gold path
+│   └── quality/                 # Data quality checks
+├── domain/                      # Shared traffic intelligence and alert domain logic
+├── ml/                          # Training, feature schema, MLflow tracking helpers
+├── graph/                       # Optional Neo4j graph prototype
+├── data/                        # Local raw/bronze/silver/gold data
+│   ├── raw/                     # Source JSONL snapshots
+│   ├── bronze/
+│   ├── silver/
+│   └── gold/
+├── models/                      # Local model artifacts, model packs, metadata
+├── reports/                     # Pipeline, DQ, benchmark, streaming evidence
+├── docs/                        # Architecture, contracts, operations, assets
+│   └── assets/                  # README and documentation images
+├── infra/                       # Docker/local infrastructure and service config
+├── scripts/                     # Utility scripts and one-off checks
+├── tests/                       # Unit, smoke, and integration tests
+├── config/                      # Runtime and pipeline configuration
 ├── docker-compose.yml
 ├── Makefile
 ├── requirements.txt
 └── README.md
 ```
+
+Default verified path: `data/raw/*.jsonl` -> `data/bronze` -> `data/silver` -> `data/gold` -> DQ report -> `models/` artifact -> FastAPI/dashboard.
 
 ---
 
@@ -267,7 +275,7 @@ Một số endpoint chính:
 /graph/status
 ```
 
-![FastAPI Swagger](images/fastapi_swagger.png)
+![FastAPI Swagger](docs/assets/fastapi_swagger.png)
 
 ---
 
@@ -289,7 +297,7 @@ Truy cập dashboard:
 http://localhost:5173
 ```
 
-![Dashboard Overview](images/dashboard_overview.png)
+![Dashboard Overview](docs/assets/dashboard_overview.png)
 
 Dashboard gồm các màn hình chính:
 
@@ -308,7 +316,7 @@ Dashboard gồm các màn hình chính:
 
 Màn hình **Live Map** hiển thị các đoạn đường trên bản đồ, phân loại theo trạng thái lưu thông. Người dùng có thể lọc theo thành phố, mức độ ùn tắc, loại đường và lớp dữ liệu hiển thị.
 
-![Live Map](images/live_map.png)
+![Live Map](docs/assets/live_map.png)
 
 Các chức năng chính:
 
@@ -325,7 +333,7 @@ Các chức năng chính:
 
 Màn hình **Forecast** hiển thị dự báo tốc độ trong ngắn hạn cho một đoạn đường cụ thể.
 
-![Traffic Forecast](images/forecast.png)
+![Traffic Forecast](docs/assets/forecast.png)
 
 Các thông tin chính:
 
@@ -343,7 +351,7 @@ Các thông tin chính:
 
 Màn hình **Hotspots** hiển thị các cụm ùn tắc đang hoạt động. Hệ thống nhóm các đoạn đường có dấu hiệu ùn tắc để người dùng dễ theo dõi theo khu vực.
 
-![Traffic Hotspots](images/hotspots.png)
+![Traffic Hotspots](docs/assets/hotspots.png)
 
 Các chức năng chính:
 
@@ -360,7 +368,7 @@ Các chức năng chính:
 
 Màn hình **Explanations** giúp giải thích vì sao mô hình đưa ra một kết quả dự báo nhất định.
 
-![Prediction Explanation](images/explanations.png)
+![Prediction Explanation](docs/assets/explanations.png)
 
 Các thông tin chính:
 
@@ -377,7 +385,7 @@ Các thông tin chính:
 
 Màn hình **Monitoring** hiển thị trạng thái vận hành của ứng dụng.
 
-![System Monitoring](images/monitoring.png)
+![System Monitoring](docs/assets/monitoring.png)
 
 Các thông tin chính:
 
@@ -453,7 +461,7 @@ DAG thực hiện:
 * Tạo dữ liệu phục vụ dashboard.
 * Ghi report sau khi chạy.
 
-![Airflow DAGs](images/airflow_dags.png)
+![Airflow DAGs](docs/assets/airflow_dags.png)
 
 ---
 
@@ -524,7 +532,7 @@ MLflow hiển thị:
 * Artifact của mô hình.
 * Metadata của từng run.
 
-![MLflow Dashboard](images/mlflow_dashboard.png)
+![MLflow Dashboard](docs/assets/mlflow_dashboard.png)
 
 ---
 
@@ -599,15 +607,6 @@ make frontend-smoke  # Kiểm tra frontend
 make test            # Chạy test
 make ci-local        # Chạy pipeline + DQ + test + frontend
 ```
-
----
-
-## 8. Thành viên
-
-* Tên thành viên 1 - Mã sinh viên
-* Tên thành viên 2 - Mã sinh viên
-* Tên thành viên 3 - Mã sinh viên
-* Tên thành viên 4 - Mã sinh viên
 
 ---
 

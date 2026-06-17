@@ -30,7 +30,7 @@ with TaskGroup("import_batch_datasets", tooltip="Import all batch data", dag=dag
         task_id="import_osm",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/ingestion/batch/osm_importer.py \
+            /opt/spark-apps/pipelines/ingestion/batch/osm_importer.py \
             {WAREHOUSE}
         """,
         trigger_rule="all_done",  # Continue even if previous failed
@@ -40,7 +40,7 @@ with TaskGroup("import_batch_datasets", tooltip="Import all batch data", dag=dag
         task_id="import_pems_bay",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/ingestion/batch/pems_bay_importer.py \
+            /opt/spark-apps/pipelines/ingestion/batch/pems_bay_importer.py \
             {WAREHOUSE}
         """,
         trigger_rule="all_done",
@@ -50,7 +50,7 @@ with TaskGroup("import_batch_datasets", tooltip="Import all batch data", dag=dag
         task_id="import_mets10",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/ingestion/batch/mets10_importer.py \
+            /opt/spark-apps/pipelines/ingestion/batch/mets10_importer.py \
             {WAREHOUSE}
         """,
         trigger_rule="all_done",
@@ -60,7 +60,7 @@ with TaskGroup("import_batch_datasets", tooltip="Import all batch data", dag=dag
         task_id="import_hcmc_traffic",
         bash_command=f"""
         {SPARK_SUBMIT} \
-            /opt/spark-apps/ingestion/batch/hcmc_traffic_importer.py \
+            /opt/spark-apps/pipelines/ingestion/batch/hcmc_traffic_importer.py \
             {WAREHOUSE}
         """,
         trigger_rule="all_done",

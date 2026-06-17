@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # Integrated Phase 1 + Phase 2 Execution
-# Clean raw/ data first, then run Phase 1 producers continuously
+# Clean data/raw/ data first, then run Phase 1 producers continuously
 
 set -e
 
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║  INTEGRATED PHASE 1 + PHASE 2 EXECUTION               ║"
-echo "║  Strategy: Clean raw/ first + continuous producers   ║"
+echo "║  Strategy: Clean data/raw/ first + continuous producers   ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo ""
 
 WAREHOUSE="s3a://lakehouse"
-RAW_DATA_DIR="${RAW_DATA_DIR:-raw}"
+RAW_DATA_DIR="${RAW_DATA_DIR:-data/raw}"
 
 # Check if running in background or interactive
 INTERACTIVE=${INTERACTIVE:-true}
@@ -42,13 +42,13 @@ echo "⏳ Loading 601 traffic + 360 weather files..."
 echo ""
 
 # Create a simple test to verify load_raw_data script exists
-if [ ! -f "processing/batch_load/load_raw_data.py" ]; then
+if [ ! -f "pipelines/processing/batch_load/load_raw_data.py" ]; then
     echo "❌ Error: load_raw_data.py not found"
     exit 1
 fi
 
 echo "Command to run (in Airflow or manually):"
-echo "  spark-submit processing/batch_load/load_raw_data.py $RAW_DATA_DIR $WAREHOUSE"
+echo "  spark-submit pipelines/processing/batch_load/load_raw_data.py $RAW_DATA_DIR $WAREHOUSE"
 echo ""
 echo "Expected results:"
 echo "  - bronze_traffic_raw: ~600K records"
@@ -64,13 +64,13 @@ echo ""
 echo "Commands to run (all in parallel):"
 echo ""
 echo "  Terminal 1:"
-echo "    spark-submit processing/silver/clean_traffic.py $WAREHOUSE"
+echo "    spark-submit pipelines/processing/silver/clean_traffic.py $WAREHOUSE"
 echo ""
 echo "  Terminal 2:"
-echo "    spark-submit processing/silver/clean_weather.py $WAREHOUSE"
+echo "    spark-submit pipelines/processing/silver/clean_weather.py $WAREHOUSE"
 echo ""
 echo "  Terminal 3:"
-echo "    spark-submit processing/silver/match_traffic_weather.py $WAREHOUSE"
+echo "    spark-submit pipelines/processing/silver/match_traffic_weather.py $WAREHOUSE"
 echo ""
 echo "Expected results:"
 echo "  - silver_traffic_cleaned: ~500K (85% quality)"
@@ -87,30 +87,30 @@ echo "✅ Ready to run. These feed new data continuously:"
 echo ""
 
 echo "  Terminal 1: News Crawler"
-echo "    python3 ingestion/producers/news_producer.py"
+echo "    python3 pipelines/ingestion/producers/news_producer.py"
 echo "    → events.news topic"
 echo ""
 
 echo "  Terminal 2: TomTom Traffic (requires API key)"
 echo "    export TOMTOM_API_KEY='your_key'"
-echo "    python3 ingestion/producers/tomtom_producer.py"
+echo "    python3 pipelines/ingestion/producers/tomtom_producer.py"
 echo "    → traffic.realtime.tomtom topic"
 echo ""
 
 echo "  Terminal 3: Weather (requires API key)"
 echo "    export OWM_API_KEY='your_key'"
-echo "    python3 ingestion/producers/weather_producer.py"
+echo "    python3 pipelines/ingestion/producers/weather_producer.py"
 echo "    → weather.current topic"
 echo ""
 
 echo "  Terminal 4: Aligned Producer"
-echo "    python3 ingestion/producers/traffic_weather_producer.py"
+echo "    python3 pipelines/ingestion/producers/traffic_weather_producer.py"
 echo "    → Both topics (synced)"
 echo ""
 
 echo "  Terminal 5: Bronze Streaming"
 echo "    spark-submit --master spark://spark-master:7077 \\"
-echo "      processing/bronze/kafka_to_bronze.py \\"
+echo "      pipelines/processing/bronze/kafka_to_bronze.py \\"
 echo "      kafka:9092 traffic.realtime.tomtom $WAREHOUSE"
 echo "    → Continuous Kafka → Bronze streaming"
 echo ""
@@ -148,7 +148,7 @@ echo "  ✅ Ready for Phase 3 features immediately"
 echo "  ✅ Continuous real-time data collection"
 echo ""
 echo "Next: Phase 3 Feature Engineering"
-echo "  spark-submit processing/gold/build_training_dataset.py"
+echo "  spark-submit pipelines/processing/gold/build_training_dataset.py"
 echo ""
 echo "Status: 🚀 READY TO EXECUTE"
 echo ""

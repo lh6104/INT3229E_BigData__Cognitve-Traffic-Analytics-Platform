@@ -299,7 +299,7 @@ def consume_to_bronze(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bootstrap-servers", default="localhost:9092")
-    parser.add_argument("--raw-dir", default="raw")
+    parser.add_argument("--raw-dir", default="data/raw")
     parser.add_argument("--output", default="data/bronze/streaming_bounded_test.jsonl")
     parser.add_argument("--limit-per-topic", type=int, default=3)
     parser.add_argument("--timeout-ms", type=int, default=5000)

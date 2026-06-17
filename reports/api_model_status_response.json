@@ -2,7 +2,7 @@
   "path": "/model/status?load_models=false",
   "status_code": 200,
   "response": {
-    "model_dir": "/home/longha/Desktop/big-data/results/cta_model_pack_final_v1_20260613T162016Z",
+    "model_dir": "/home/longha/Desktop/big-data/models/results/cta_model_pack_final_v1_20260613T162016Z",
     "ready": true,
     "load_models": false,
     "horizons": {

@@ -26,7 +26,7 @@ Suggested structure for a 10-page IEEE-style capstone report.
 ## 4. System Architecture
 
 - End-to-end architecture diagram.
-- Ingestion, raw/Bronze/Silver/Gold layers.
+- Ingestion, data/raw/Bronze/Silver/Gold layers.
 - API and frontend layers.
 - Docker-based reproducible Python 3.11 environment.
 

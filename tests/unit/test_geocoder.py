@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from processing.silver.geocoder import (
+from pipelines.processing.silver.geocoder import (
     geocode,
     snap_confidence,
     geocode_with_confidence,
@@ -39,13 +39,13 @@ def _nominatim_response(lat: float, lon: float):
 class TestGeocodeCache:
     def test_cache_hit_returns_cached(self):
         cached = {"lat": 21.0245, "lon": 105.8412}
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(cached)):
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(cached)):
             result = geocode("Hoàn Kiếm, Hà Nội")
         assert result == cached
 
     def test_cache_miss_calls_nominatim(self):
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
-             patch("processing.silver.geocoder.requests.get", return_value=_nominatim_response(21.03, 105.85)):
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
+             patch("pipelines.processing.silver.geocoder.requests.get", return_value=_nominatim_response(21.03, 105.85)):
             result = geocode("ngã tư Khuất Duy Tiến, Hà Nội")
         assert result is not None
         assert abs(result["lat"] - 21.03) < 0.001
@@ -69,18 +69,18 @@ class TestNominatimFallback:
                 raise Exception("connection refused")
             return _nominatim_response(10.78, 106.70)
 
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
-             patch("processing.silver.geocoder.requests.get", side_effect=mock_get), \
-             patch("processing.silver.geocoder.time.sleep"):
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
+             patch("pipelines.processing.silver.geocoder.requests.get", side_effect=mock_get), \
+             patch("pipelines.processing.silver.geocoder.time.sleep"):
             result = geocode("Quận 1, TP.HCM")
 
         assert result is not None
         assert call_count[0] >= 2   # gọi ít nhất 2 lần (self-host + public)
 
     def test_both_fail_returns_none(self):
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
-             patch("processing.silver.geocoder.requests.get", side_effect=Exception("network error")), \
-             patch("processing.silver.geocoder.time.sleep"):
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
+             patch("pipelines.processing.silver.geocoder.requests.get", side_effect=Exception("network error")), \
+             patch("pipelines.processing.silver.geocoder.time.sleep"):
             result = geocode("địa danh không tồn tại xyz")
         assert result is None
 
@@ -119,8 +119,8 @@ class TestSpecificityBonus:
 
 class TestGeocodeWithConfidence:
     def test_success_returns_lat_lon_and_ok(self):
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
-             patch("processing.silver.geocoder.requests.get",
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
+             patch("pipelines.processing.silver.geocoder.requests.get",
                    return_value=_nominatim_response(21.03, 105.85)):
             lat, lon, conf, status = geocode_with_confidence(
                 "cầu Nhật Tân, Hà Nội",
@@ -131,17 +131,17 @@ class TestGeocodeWithConfidence:
         assert conf >= 1.0   # snap<50m + bridge bonus
 
     def test_fail_returns_none_and_failed(self):
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
-             patch("processing.silver.geocoder.requests.get", side_effect=Exception("fail")), \
-             patch("processing.silver.geocoder.time.sleep"):
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
+             patch("pipelines.processing.silver.geocoder.requests.get", side_effect=Exception("fail")), \
+             patch("pipelines.processing.silver.geocoder.time.sleep"):
             lat, lon, conf, status = geocode_with_confidence("xyz không tồn tại")
         assert status == "failed"
         assert lat is None
         assert conf == 0.0
 
     def test_mirror_bonus_caps_at_1(self):
-        with patch("processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
-             patch("processing.silver.geocoder.requests.get",
+        with patch("pipelines.processing.silver.geocoder._get_redis", return_value=_mock_redis(None)), \
+             patch("pipelines.processing.silver.geocoder.requests.get",
                    return_value=_nominatim_response(10.78, 106.70)):
             _, _, conf, _ = geocode_with_confidence(
                 "ngã tư lớn TP.HCM",

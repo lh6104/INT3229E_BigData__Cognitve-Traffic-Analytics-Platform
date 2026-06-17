@@ -8,7 +8,7 @@ import logging
 
 from api.services.local_data import DataUnavailableError, latest_by_segment, normalize_city, traffic_features
 from api.services.model_inference import ModelUnavailableError, model_status, normalize_horizon, predict_for_segment
-from intelligence.what_if_simulator import simulate_traffic_scenario
+from domain.intelligence.what_if_simulator import simulate_traffic_scenario
 
 logger = logging.getLogger(__name__)
 

@@ -850,7 +850,7 @@ def build(raw_dir: Path, output_dir: Path, bucket_minutes: int, primary_city: st
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build clean local Gold training datasets from raw JSONL files.")
-    parser.add_argument("--raw-dir", default="raw", type=Path, help="Directory containing traffic/ and weather/ JSONL folders.")
+    parser.add_argument("--raw-dir", default="data/raw", type=Path, help="Directory containing traffic/ and weather/ JSONL folders.")
     parser.add_argument("--output-dir", default="data", type=Path, help="Output directory for silver/gold datasets.")
     parser.add_argument("--bucket-minutes", default=5, type=int, help="Traffic/weather bucket size in minutes.")
     parser.add_argument("--primary-city", default=DEFAULT_PRIMARY_CITY, help="City used for baseline model training.")

@@ -89,19 +89,19 @@ def test_producer_imports():
     """Test: Producer modules import correctly."""
     logger.info("TEST: Producer Imports")
     try:
-        from ingestion.producers.base_producer import BaseProducer
+        from pipelines.ingestion.producers.base_producer import BaseProducer
         logger.info("  ✅ BaseProducer")
 
-        from ingestion.producers.tomtom_producer import TomTomProducer
+        from pipelines.ingestion.producers.tomtom_producer import TomTomProducer
         logger.info("  ✅ TomTomProducer")
 
-        from ingestion.producers.weather_producer import WeatherProducer
+        from pipelines.ingestion.producers.weather_producer import WeatherProducer
         logger.info("  ✅ WeatherProducer")
 
-        from ingestion.producers.news_producer import NewsKafkaProducer
+        from pipelines.ingestion.producers.news_producer import NewsKafkaProducer
         logger.info("  ✅ NewsKafkaProducer")
 
-        from ingestion.producers.traffic_weather_producer import TrafficWeatherProducer
+        from pipelines.ingestion.producers.traffic_weather_producer import TrafficWeatherProducer
         logger.info("  ✅ TrafficWeatherProducer")
 
         return True
@@ -114,7 +114,7 @@ def test_osm_importer():
     """Test: OSM importer module exists and has logic."""
     logger.info("TEST: OSM Importer")
     try:
-        from ingestion.batch.osm_importer import import_osm
+        from pipelines.ingestion.batch.osm_importer import import_osm
 
         import inspect
         source = inspect.getsource(import_osm)
@@ -134,10 +134,10 @@ def test_tomtom_stats():
     """Test: TomTom Stats client modules exist."""
     logger.info("TEST: TomTom Stats")
     try:
-        from ingestion.tomtom_stats.stats_client import TomTomStatsClient, fetch_tomtom_stats
+        from pipelines.ingestion.tomtom_stats.stats_client import TomTomStatsClient, fetch_tomtom_stats
         logger.info("  ✅ stats_client.py (async API client)")
 
-        from ingestion.tomtom_stats.stats_loader import TomTomStatsLoader, load_tomtom_stats
+        from pipelines.ingestion.tomtom_stats.stats_loader import TomTomStatsLoader, load_tomtom_stats
         logger.info("  ✅ stats_loader.py (Iceberg writer)")
 
         return True
@@ -150,13 +150,13 @@ def test_spark_utils():
     """Test: Spark utilities."""
     logger.info("TEST: Spark Utilities")
     try:
-        from processing.utils.spark_session import get_spark_session
+        from pipelines.processing.utils.spark_session import get_spark_session
         logger.info("  ✅ spark_session.py")
 
-        from processing.utils.iceberg_utils import IcebergUtils
+        from pipelines.processing.utils.iceberg_utils import IcebergUtils
         logger.info("  ✅ iceberg_utils.py")
 
-        from processing.utils.geo_utils import is_in_hanoi, is_in_hcmc, get_city_name
+        from pipelines.processing.utils.geo_utils import is_in_hanoi, is_in_hcmc, get_city_name
         logger.info("  ✅ geo_utils.py")
 
         return True
@@ -170,7 +170,7 @@ def test_kafka_connectivity():
     logger.info("TEST: Kafka Connectivity")
     try:
         from confluent_kafka import KafkaProducer
-        from ingestion.kafka.producer import KafkaProducer as CustomProducer
+        from pipelines.ingestion.kafka.producer import KafkaProducer as CustomProducer
 
         # Try to create producer (won't connect yet, just validates config)
         logger.info("  ✅ Kafka producer configured")

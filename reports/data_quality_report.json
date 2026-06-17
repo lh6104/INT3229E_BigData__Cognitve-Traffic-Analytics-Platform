@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "generated_at": "2026-06-17T20:47:57.443965+00:00",
+    "generated_at": "2026-06-17T22:11:43.644518+00:00",
     "layer": "gold",
     "dataset": null,
     "input": "data/gold/cleaned_traffic_features",
@@ -47,7 +47,7 @@
     {
       "name": "freshness",
       "status": "PASS",
-      "detail": "timestamp_column=time_bucket max_timestamp=2026-06-12T08:15:00+00:00 age_hours=132.55 warning_hours=168",
+      "detail": "timestamp_column=time_bucket max_timestamp=2026-06-12T08:15:00+00:00 age_hours=133.95 warning_hours=168",
       "critical": false
     },
     {

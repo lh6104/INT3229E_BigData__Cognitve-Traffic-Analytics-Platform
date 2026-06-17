@@ -21,11 +21,11 @@ PROJECT_DIR = "/opt/airflow"
 def validate_bronze_files() -> None:
     from pathlib import Path
 
-    raw = Path(PROJECT_DIR) / "raw"
+    raw = Path(PROJECT_DIR) / "data" / "raw"
     if not (raw / "traffic").exists():
-        raise RuntimeError("raw/traffic is missing")
+        raise RuntimeError("data/raw/traffic is missing")
     if not list((raw / "traffic").glob("*.jsonl")):
-        raise RuntimeError("raw/traffic has no JSONL snapshots")
+        raise RuntimeError("data/raw/traffic has no JSONL snapshots")
 
 
 with DAG(
@@ -40,7 +40,7 @@ with DAG(
         "execution_timeout": timedelta(minutes=30),
     },
     params={
-        "raw_dir": Param("raw", type="string"),
+        "raw_dir": Param("data/raw", type="string"),
         "output_dir": Param("data", type="string"),
         "run_id": Param("airflow_manual", type="string"),
     },

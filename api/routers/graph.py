@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from api.services.graph_service import graph_health, hotspots, neighbors
 from api.services.local_data import DataUnavailableError, latest_by_segment, traffic_features
-from intelligence.risk_scoring import score_segment_risk
+from domain.intelligence.risk_scoring import score_segment_risk
 
 
 router = APIRouter()

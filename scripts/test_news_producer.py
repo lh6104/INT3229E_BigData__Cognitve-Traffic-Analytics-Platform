@@ -12,8 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 try:
-    from ingestion.producers.news_producer import NewsKafkaProducer
-    from ingestion.kafka.producer import KafkaProducer
+    from pipelines.ingestion.producers.news_producer import NewsKafkaProducer
+    from pipelines.ingestion.kafka.producer import KafkaProducer
 
     print("✅ Imports successful")
     print("")

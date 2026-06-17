@@ -131,7 +131,7 @@ cognitive-traffic-analytics/
 │           ├── pipeline-monitoring.json
 │           └── model-monitoring.json
 │
-├── ingestion/                          # Kafka producers & batch importers
+├── pipelines/ingestion/                          # Kafka producers & batch importers
 │   ├── producers/
 │   │   ├── tomtom_producer.py          # Polling TomTom Flow API → Kafka
 │   │   ├── weather_producer.py         # Polling OpenWeatherMap → Kafka
@@ -146,7 +146,7 @@ cognitive-traffic-analytics/
 │       ├── stats_client.py             # Gọi TomTom Traffic Stats REST API async
 │       └── stats_loader.py             # Parse response → Silver lookup table
 │
-├── processing/                         # Spark jobs: cleaning, feature engineering
+├── pipelines/processing/                         # Spark jobs: cleaning, feature engineering
 │   ├── bronze/
 │   │   ├── kafka_to_bronze.py          # Spark Structured Streaming: Kafka → Bronze Iceberg
 │   │   └── batch_to_bronze.py          # Ghi batch dataset vào Bronze

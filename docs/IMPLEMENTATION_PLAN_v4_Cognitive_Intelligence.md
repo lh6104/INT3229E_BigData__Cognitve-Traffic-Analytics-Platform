@@ -160,7 +160,7 @@ cognitive-traffic-analytics/
 │           ├── pipeline-monitoring.json
 │           └── model-monitoring.json
 │
-├── ingestion/
+├── pipelines/ingestion/
 │   ├── producers/
 │   │   ├── base_producer.py
 │   │   ├── tomtom_producer.py
@@ -176,7 +176,7 @@ cognitive-traffic-analytics/
 │       ├── stats_client.py
 │       └── stats_loader.py
 │
-├── processing/
+├── pipelines/processing/
 │   ├── bronze/
 │   │   ├── kafka_to_bronze.py
 │   │   └── batch_to_bronze.py
@@ -332,7 +332,7 @@ cognitive-traffic-analytics/
 - [x] Schema Registry đăng ký Avro schema cho các topics chính
 - [x] `Makefile` 12 targets: `make up/down/health/logs/check-kafka/create-topics/demo`
 - [x] `scripts/check_stack_health.sh`
-- [x] `processing/utils/spark_session.py` — SparkSession factory với Iceberg + S3A config cho Amazon S3
+- [x] `pipelines/processing/utils/spark_session.py` — SparkSession factory với Iceberg + S3A config cho Amazon S3
 
 #### 1.1.1 AWS S3 Lakehouse Setup
 

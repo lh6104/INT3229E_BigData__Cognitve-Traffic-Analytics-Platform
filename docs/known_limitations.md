@@ -32,7 +32,7 @@ This project is ready for a capstone/demo walkthrough, but it is not a productio
 ## Streaming And Infrastructure
 
 - The architecture includes Kafka, Redis, Postgres, MinIO, Trino, Airflow, and related big-data components.
-- In the current demo state, the reliable path is local/batch-oriented processing over `raw/` and `data/`.
+- In the current demo state, the reliable path is local/batch-oriented processing over `data/raw/` and `data/`.
 - `make streaming-mini-demo` provides minimal Kafka produce/consume evidence when Kafka is running. If Kafka is not running, the report is marked `SKIPPED`.
 - Real streaming ingestion and full infrastructure integration are not yet productionized.
 
@@ -48,7 +48,7 @@ This project is ready for a capstone/demo walkthrough, but it is not a productio
 ## Model Artifacts
 
 - Model artifacts are not committed to normal Git history.
-- `cta_training_outputs/` and `results/cta_training_outputs_balanced_v3_latest/` are ignored to avoid storing large binary artifacts in Git.
+- `cta_training_outputs/` and `models/results/cta_training_outputs_balanced_v3_latest/` are ignored to avoid storing large binary artifacts in Git.
 - Use Git LFS, object storage, or a model registry for long-term artifact management.
 
 ## Frontend Fallbacks

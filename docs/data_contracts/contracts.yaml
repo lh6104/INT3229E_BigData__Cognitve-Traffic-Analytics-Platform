@@ -1,7 +1,7 @@
 datasets:
   raw_traffic:
     layer: raw
-    path: raw/traffic/*.jsonl
+    path: data/raw/traffic/*.jsonl
     grain: source snapshot record
     primary_key: [city, segment_id, timestamp]
     timestamp_column: timestamp
@@ -21,7 +21,7 @@ datasets:
 
   raw_weather:
     layer: raw
-    path: raw/weather/*.jsonl
+    path: data/raw/weather/*.jsonl
     grain: weather cell timestamp
     primary_key: [city, weather_cell_id, timestamp]
     timestamp_column: timestamp

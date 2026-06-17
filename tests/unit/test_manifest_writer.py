@@ -16,7 +16,7 @@ def test_manifest_writer_outputs_json_and_markdown(tmp_path):
         status="success",
         start_time_utc=start,
         end_time_utc=end,
-        input_paths=["raw/*.jsonl"],
+        input_paths=["data/raw/*.jsonl"],
         output_paths=[output],
     )
 

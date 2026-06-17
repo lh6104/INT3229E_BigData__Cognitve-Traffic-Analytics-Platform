@@ -23,7 +23,7 @@ Airflow UI runs at `http://localhost:8088` with `admin/admin` by default. Trigge
 
 The Airflow DAG accepts optional params:
 
-- `raw_dir`: default `raw`
+- `raw_dir`: default `data/raw`
 - `output_dir`: default `data`
 - `run_id`: default `airflow_manual`
 
@@ -31,7 +31,7 @@ The DAG writes `reports/airflow_run_report.json` and the local pipeline writes `
 
 ## Backfill and Incremental Load Policy
 
-The verified local pipeline is currently a full-refresh pipeline over the available `raw/` snapshots. This is intentional for a Junior Data Engineer portfolio project because it keeps the run reproducible and easy to inspect.
+The verified local pipeline is currently a full-refresh pipeline over the available `data/raw/` snapshots. This is intentional for a Junior Data Engineer portfolio project because it keeps the run reproducible and easy to inspect.
 
 The natural incremental keys are:
 

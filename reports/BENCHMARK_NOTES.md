@@ -1,7 +1,7 @@
 # Benchmark Notes
 
 ## Source of truth
-- Model pack: `results/cta_model_pack_final_v1_20260613T162016Z`.
+- Model pack: `models/results/cta_model_pack_final_v1_20260613T162016Z`.
 - Tables and figures were generated from existing model-pack artifacts, not from estimated values.
 - `benchmark_results.csv` keeps blank percentile/latency columns where the source artifact does not provide those metrics.
 

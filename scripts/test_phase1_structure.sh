@@ -45,11 +45,11 @@ echo ""
 # Test 3: Producer Files
 echo "TEST: Producer Implementations"
 PRODUCER_FILES=(
-    "ingestion/producers/base_producer.py"
-    "ingestion/producers/tomtom_producer.py"
-    "ingestion/producers/weather_producer.py"
-    "ingestion/producers/news_producer.py"
-    "ingestion/producers/traffic_weather_producer.py"
+    "pipelines/ingestion/producers/base_producer.py"
+    "pipelines/ingestion/producers/tomtom_producer.py"
+    "pipelines/ingestion/producers/weather_producer.py"
+    "pipelines/ingestion/producers/news_producer.py"
+    "pipelines/ingestion/producers/traffic_weather_producer.py"
 )
 
 MISSING=0
@@ -71,8 +71,8 @@ echo ""
 
 # Test 4: OSM Importer
 echo "TEST: OSM Importer"
-if [ -f "ingestion/batch/osm_importer.py" ]; then
-    if grep -q "osmnx" ingestion/batch/osm_importer.py; then
+if [ -f "pipelines/ingestion/batch/osm_importer.py" ]; then
+    if grep -q "osmnx" pipelines/ingestion/batch/osm_importer.py; then
         echo "  ✅ OSM importer has actual implementation (osmnx)"
         ((PASS++))
     else
@@ -87,7 +87,7 @@ echo ""
 
 # Test 5: TomTom Stats Pipeline
 echo "TEST: TomTom Stats Pipeline"
-STATS_FILES=("ingestion/tomtom_stats/stats_client.py" "ingestion/tomtom_stats/stats_loader.py")
+STATS_FILES=("pipelines/ingestion/tomtom_stats/stats_client.py" "pipelines/ingestion/tomtom_stats/stats_loader.py")
 MISSING=0
 for file in "${STATS_FILES[@]}"; do
     if [ -f "$file" ]; then
@@ -107,7 +107,7 @@ echo ""
 
 # Test 6: Spark Utilities
 echo "TEST: Spark Utilities"
-UTIL_FILES=("processing/utils/spark_session.py" "processing/utils/iceberg_utils.py" "processing/utils/geo_utils.py")
+UTIL_FILES=("pipelines/processing/utils/spark_session.py" "pipelines/processing/utils/iceberg_utils.py" "pipelines/processing/utils/geo_utils.py")
 MISSING=0
 for file in "${UTIL_FILES[@]}"; do
     if [ -f "$file" ]; then
@@ -127,7 +127,7 @@ echo ""
 
 # Test 7: Bronze Layer
 echo "TEST: Bronze Layer Processing"
-BRONZE_FILES=("processing/bronze/kafka_to_bronze.py" "processing/bronze/batch_to_bronze.py")
+BRONZE_FILES=("pipelines/processing/bronze/kafka_to_bronze.py" "pipelines/processing/bronze/batch_to_bronze.py")
 MISSING=0
 for file in "${BRONZE_FILES[@]}"; do
     if [ -f "$file" ]; then
