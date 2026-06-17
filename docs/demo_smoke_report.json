@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-13T23:27:01.606559+00:00",
-  "base_url": "http://localhost:8000",
+  "generated_at": "2026-06-17T20:48:30.859068+00:00",
+  "base_url": "http://127.0.0.1:8001",
   "checks": [
     {
       "check": "API health",
@@ -23,9 +23,9 @@
       "detail": "10 features"
     },
     {
-      "check": "GeoJSON HCMC expanded",
+      "check": "Live Map clean roads",
       "status": "PASS",
-      "detail": "620 features"
+      "detail": "road-shaped live map segments only"
     },
     {
       "check": "Traffic segments",
@@ -35,17 +35,17 @@
     {
       "check": "Forecast 15m",
       "status": "PASS",
-      "detail": "model=extra_trees, coverage=62/62, latency_ms=2968.9"
+      "detail": "model=extra_trees, coverage=62/62, latency_ms=711.3"
     },
     {
       "check": "Forecast 60m",
       "status": "PASS",
-      "detail": "model=extra_trees, coverage=62/62, latency_ms=594.7"
+      "detail": "model=extra_trees, coverage=62/62, latency_ms=37.8"
     },
     {
       "check": "Forecast reliability",
       "status": "PASS",
-      "detail": "model=extra_trees, coverage=62/62, latency_ms=45.9"
+      "detail": "model=extra_trees, coverage=62/62, latency_ms=28.8"
     },
     {
       "check": "Predicted hotspots",
@@ -80,7 +80,7 @@
     {
       "check": "Frontend build",
       "status": "PASS",
-      "detail": "npm run build completed in 57.56s"
+      "detail": "npm run build completed in 7.32s"
     }
   ],
   "overall_status": "PASS"

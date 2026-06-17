@@ -1,241 +1,417 @@
 # Cognitive Traffic Analytics Platform
 
-Local-first big data prototype for urban traffic analytics and forecasting. The project ingests traffic, weather, and traffic-news data, builds Bronze/Silver/Gold datasets, exposes a FastAPI backend, and renders an operational React dashboard.
+## 1. Tổng quan dự án
 
-Cognitive trong phạm vi project được hiểu là context-aware predictive decision support: kết hợp traffic/segment/weather/event context, model forecast, risk scoring và dashboard explanation. This is not a self-learning autonomous traffic-control AI.
+**Cognitive Traffic Analytics Platform** là hệ thống phân tích giao thông thông minh, hỗ trợ theo dõi tình trạng giao thông, xem bản đồ lưu lượng, phát hiện điểm nóng ùn tắc, dự báo tốc độ di chuyển và giải thích kết quả dự đoán của mô hình.
 
-## Architecture
+Ứng dụng được thiết kế cho vai trò điều phối / giám sát giao thông. Người dùng có thể mở dashboard để xem tổng quan hệ thống, theo dõi các tuyến đường trên bản đồ, kiểm tra các khu vực đang ùn tắc, xem dự báo trong ngắn hạn và kiểm tra trạng thái vận hành của pipeline dữ liệu.
 
-Data flow:
+Các chức năng chính:
+
+- Theo dõi tổng quan tình trạng giao thông từ dữ liệu đã xử lý.
+- Hiển thị bản đồ các đoạn đường, trạng thái lưu thông và lớp phủ thời tiết.
+- Dự báo tốc độ giao thông theo từng đoạn đường.
+- Phát hiện và hiển thị các cụm ùn tắc / điểm nóng giao thông.
+- Giải thích lý do mô hình đưa ra dự báo.
+- Theo dõi trạng thái dữ liệu, mô hình, API và pipeline.
+- Cung cấp API phục vụ dashboard và các tác vụ inference.
+
+---
+
+## 2. Giao diện ứng dụng
+
+### 2.1. Dashboard tổng quan
+
+Dashboard tổng quan hiển thị nhanh trạng thái hiện tại của hệ thống: số đoạn đường đang theo dõi, cảnh báo đang hoạt động, tốc độ trung bình, số dòng dữ liệu Gold, trạng thái API, mô hình và độ trễ dự báo.
+
+![Dashboard Overview](images/dashboard_overview.png)
+
+Các thông tin chính:
+
+- Số lượng đoạn đường đang hiển thị.
+- Số cảnh báo đang hoạt động.
+- Tốc độ trung bình.
+- Số dòng dữ liệu Gold.
+- Trạng thái API và dữ liệu.
+- Hiệu năng mô hình và độ trễ dự báo.
+- Biểu đồ xu hướng tốc độ và jam factor.
+
+---
+
+### 2.2. Live Map
+
+Màn hình **Live Map** hiển thị các đoạn đường trên bản đồ, phân loại theo mức độ lưu thông như free flow, slow, congested hoặc severe. Người dùng có thể lọc theo thành phố, mức độ ùn tắc, loại đường và lớp dữ liệu hiển thị.
+
+![Live Map](images/live_map.png)
+
+Các chức năng chính:
+
+- Xem các đoạn đường được giám sát trên bản đồ.
+- Bật / tắt lớp phủ thời tiết.
+- Lọc theo mức độ ùn tắc.
+- Xem danh sách các đoạn đường ùn tắc nhiều nhất.
+- Chọn một đoạn đường để kiểm tra thông tin chi tiết.
+- Mở dự báo cho đoạn đường được chọn.
+
+---
+
+### 2.3. Forecast
+
+Màn hình **Forecast** hiển thị dự báo tốc độ trong ngắn hạn cho một đoạn đường cụ thể. Giao diện cho phép chọn thành phố, chọn segment và xem tốc độ hiện tại, dự báo sau 15 phút, dự báo sau 60 phút và mức độ rủi ro ùn tắc.
+
+![Traffic Forecast](images/forecast.png)
+
+Các thông tin chính:
+
+- Tốc độ hiện tại.
+- Dự báo tốc độ sau 15 phút.
+- Dự báo tốc độ sau 60 phút.
+- Mức độ rủi ro ùn tắc.
+- Biểu đồ so sánh tốc độ thực tế và tốc độ dự báo.
+- Thông tin ngữ cảnh của đoạn đường.
+- Mức độ đầy đủ của feature dùng cho dự báo.
+
+---
+
+### 2.4. Hotspots
+
+Màn hình **Hotspots** hiển thị các cụm ùn tắc đang hoạt động. Hệ thống nhóm các đoạn đường có dấu hiệu ùn tắc thành cluster để người dùng dễ theo dõi theo khu vực.
+
+![Traffic Hotspots](images/hotspots.png)
+
+Các chức năng chính:
+
+- Hiển thị số lượng hotspot đang hoạt động.
+- Phân loại cụm ùn tắc theo mức độ nghiêm trọng.
+- Hiển thị bản đồ phân bố hotspot.
+- Xem danh sách các cluster đang hoạt động.
+- Kiểm tra số đoạn đường bị ảnh hưởng trong từng cluster.
+- Mở nhanh Live Map hoặc Forecast từ một cụm ùn tắc.
+
+---
+
+### 2.5. Explanations
+
+Màn hình **Explanations** giúp giải thích vì sao mô hình đưa ra một kết quả dự báo nhất định. Hệ thống hiển thị tốc độ dự báo, tốc độ hiện tại, mô hình được sử dụng và các feature có ảnh hưởng tới dự đoán.
+
+![Prediction Explanation](images/explanations.png)
+
+Các thông tin chính:
+
+- Kết quả dự báo của mô hình.
+- Tốc độ hiện tại của đoạn đường.
+- Mô hình đang được sử dụng.
+- Phân tích các feature ảnh hưởng tới kết quả.
+- Bối cảnh thời tiết nếu có.
+- Baseline context và prediction breakdown.
+
+---
+
+### 2.6. Monitoring
+
+Màn hình **Monitoring** hiển thị trạng thái vận hành của ứng dụng, bao gồm trạng thái API, dữ liệu Gold, artifact mô hình, độ mới dữ liệu, trạng thái pipeline và các thành phần liên quan.
+
+![System Monitoring](images/monitoring.png)
+
+Các thông tin chính:
+
+- Trạng thái API.
+- Trạng thái dữ liệu Gold.
+- Trạng thái model artifact.
+- Độ mới dữ liệu.
+- Trạng thái pipeline.
+- Trạng thái data quality.
+- Thông tin benchmark và bounded replay nếu có.
+
+---
+
+## 3. Kiến trúc hệ thống
+
+Hệ thống gồm ba phần chính: pipeline dữ liệu, backend API và dashboard giao thông.
+
+![System Architecture](images/system_architecture.png)
+
+Luồng xử lý tổng quát:
 
 ```text
-TomTom / OpenWeather / RSS + HTML news
-  -> ingestion producers and raw JSONL snapshots
-  -> Bronze evidence/raw layer
-  -> Silver cleaned traffic, weather, and events
-  -> Gold feature and training datasets
-  -> ML training / alerts / hotspots / API
-  -> React frontend
+Traffic / Weather / Event Data
+        ↓
+Bronze Data
+        ↓
+Silver Cleaned Data
+        ↓
+Gold Analytics Data
+        ↓
+Model Training / API Serving
+        ↓
+React Dashboard
 ```
 
-Infrastructure in `docker-compose.yml` includes Kafka, Schema Registry, Postgres, Redis, Neo4j, MinIO, Hive Metastore, Trino, and Airflow. The local data path can run without the full stack by reading `raw/` and writing `data/`.
+### Data Pipeline
 
-## Folder Structure
+Pipeline chịu trách nhiệm đọc dữ liệu đầu vào, làm sạch, chuẩn hóa và tạo dữ liệu phục vụ dashboard. Dữ liệu được tổ chức theo các tầng:
 
-- `ingestion/`: Kafka producers and API/batch importers.
-- `processing/`: Bronze, Silver, Gold, and utility processing jobs.
-- `scripts/`: local pipeline and validation scripts.
-- `raw/`: JSONL source snapshots for traffic, weather, and events.
-- `data/`: generated Bronze/Silver/Gold CSV and Parquet outputs.
-- `ml/`: training, clustering, inference, and explainability code.
-- `api/`: FastAPI app and routers.
-- `frontend/`: React/TanStack/Vite dashboard.
-- `airflow/dags/`: orchestration DAGs.
-- `infra/`: settings and Kafka schema files.
-- `tests/`: pytest unit tests.
+- **Bronze**: dữ liệu ban đầu hoặc dữ liệu mới được chuẩn hóa bước đầu.
+- **Silver**: dữ liệu đã làm sạch, chuẩn hóa timestamp và schema.
+- **Gold**: dữ liệu đã tổng hợp, dùng cho dashboard, forecast và model training.
 
-## Local Setup
+### Backend API
 
-Use Python 3.11 when possible.
+FastAPI cung cấp các endpoint để dashboard truy vấn dữ liệu, kiểm tra trạng thái hệ thống và lấy kết quả dự báo.
+
+Một số nhóm API chính:
+
+- System status.
+- Dashboard summary.
+- Traffic forecast.
+- Model status.
+- Graph status.
+- Evidence / monitoring data.
+
+### Frontend Dashboard
+
+Frontend là giao diện chính của ứng dụng, được xây dựng để người dùng theo dõi và thao tác với dữ liệu giao thông.
+
+Các màn hình chính:
+
+- Dashboard.
+- Live Map.
+- Forecast.
+- Hotspots.
+- Alerts.
+- Explanations.
+- Monitoring.
+- Settings.
+
+---
+
+## 4. Công nghệ sử dụng
+
+| Nhóm | Công nghệ |
+|---|---|
+| Data Processing | Python, pandas, Parquet |
+| Orchestration | Apache Airflow |
+| Streaming Demo | Kafka |
+| Backend API | FastAPI |
+| Frontend | React / Vite |
+| Machine Learning | Scikit-learn, LightGBM |
+| Model Tracking | MLflow |
+| Graph Analytics | Neo4j |
+| Cache / Local Service | Redis |
+| Containerization | Docker, Docker Compose |
+| Reports | JSON / Markdown reports |
+
+---
+
+## 5. Cấu trúc thư mục dự án
+
+```text
+cognitive-traffic-analytics/
+├── raw/                         # Dữ liệu nguồn ban đầu
+├── data/                        # Dữ liệu sau xử lý
+│   ├── bronze/                  # Dữ liệu ban đầu / chuẩn hóa bước đầu
+│   ├── silver/                  # Dữ liệu đã làm sạch
+│   └── gold/                    # Dữ liệu phục vụ dashboard và mô hình
+├── pipelines/                   # Pipeline xử lý dữ liệu
+│   ├── streaming/               # Kafka bounded replay demo
+│   ├── transformation/          # Xử lý raw -> silver -> gold
+│   └── quality/                 # Kiểm tra chất lượng dữ liệu
+├── api/                         # FastAPI backend
+├── frontend/                    # React dashboard
+├── ml/                          # Huấn luyện và theo dõi mô hình
+├── models/                      # Model artifacts và metadata
+├── graph/                       # Neo4j graph analytics
+├── dags/                        # Airflow DAGs
+├── monitoring/                  # Cấu hình monitoring nếu có
+├── reports/                     # Báo cáo pipeline, DQ, benchmark
+├── docs/                        # Tài liệu chi tiết
+├── images/                      # Ảnh minh họa README
+├── tests/                       # Unit test và smoke test
+├── docker-compose.yml
+├── Makefile
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 6. Hướng dẫn cài đặt
+
+### 6.1. Clone repository
 
 ```bash
-cd /home/phuc/big-data
-python3 -m venv .venv
+git clone <repository-url>
+cd cognitive-traffic-analytics
+```
+
+### 6.2. Tạo môi trường Python
+
+```bash
+python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env.local
 ```
 
-Fill `.env.local` with real local values. Do not commit it.
+Trên Windows PowerShell:
 
-## Environment Variables
+```powershell
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-Important variables used by the code and compose stack:
-
-- `TOMTOM_API_KEY`
-- `OWM_API_KEY` or `OPENWEATHER_API_KEY`
-- `TOMTOM_POLL_INTERVAL_MINUTES`
-- `WEATHER_POLL_INTERVAL_MINUTES`
-- `KAFKA_BOOTSTRAP_SERVERS`
-- `KAFKA_TOPIC_EVENTS`
-- `SCHEMA_REGISTRY_URL`
-- `REDIS_URL`
-- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-- `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
-- `NOMINATIM_URL`
-- `PHOBERT_CHECKPOINT`
-- `API_DATA_DIR`
-- `VITE_API_BASE_URL`
-
-## Build Local Data Pipeline
-
-Build local Bronze/Silver/Gold outputs from `raw/`:
+### 6.3. Tạo file môi trường
 
 ```bash
-make gold
+cp .env.example .env
 ```
 
-Useful individual targets:
+Ví dụ cấu hình:
+
+```env
+TOMTOM_API_KEY=your_tomtom_api_key
+OPENWEATHER_API_KEY=your_openweather_api_key
+
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=traffic_db
+
+MLFLOW_TRACKING_URI=http://localhost:5000
+```
+
+### 6.4. Khởi động local stack
 
 ```bash
-make news-bronze
-make news-events
-python3 scripts/build_local_gold_dataset.py --raw-dir raw --output-dir data
+make up
 ```
 
-Fetch one live raw-data cycle, if API keys are configured:
+Hoặc:
 
 ```bash
-make ingest-raw-once
+docker compose up -d
 ```
 
-## Run API
-
-The API reads local `data/` by default and can run from the project root:
+Kiểm tra trạng thái container:
 
 ```bash
-uvicorn api.main:app --reload --port 8000
+docker compose ps
 ```
 
-Health check:
+---
+
+## 7. Chạy ứng dụng
+
+### 7.1. Chạy pipeline dữ liệu
 
 ```bash
-curl http://localhost:8000/health
+make pipeline
 ```
 
-Example endpoints:
+Pipeline tạo dữ liệu phục vụ dashboard và mô hình:
 
-- `GET /traffic/current/hanoi`
-- `GET /traffic/segments?city=hanoi`
-- `GET /traffic/predict/HN_001?horizon=15`
-- `GET /alerts/active`
-- `GET /hotspots?city=hanoi`
-- `GET /hotspots/predicted?city=hanoi&horizon=15m`
-- `GET /segments/geojson?city=hanoi`
-- `GET /predictions/HN_001/explain`
-- `GET /system/status`
+```text
+raw data -> bronze -> silver -> gold
+```
 
-## Run with Docker
-
-Use Docker when the host Python version is not 3.11. The backend image uses `python:3.11-slim`, so host Python is not required for backend tests or API development.
+### 7.2. Kiểm tra chất lượng dữ liệu
 
 ```bash
-docker compose build api
-docker compose run --rm api python --version
+make dq-check
 ```
 
-The `api` compose service mounts the working tree into `/app` and reads local `data/`.
+Report chi tiết được lưu trong:
 
-### Run API with Docker
+```text
+reports/
+docs/
+```
+
+### 7.3. Huấn luyện mô hình
 
 ```bash
-make docker-api
-# or
-docker compose up --build api
+make train
 ```
 
-The API runs on `http://localhost:8000`.
+Thông tin model và artifact được lưu trong:
 
-### Run tests with Docker
+```text
+models/
+reports/
+```
+
+### 7.4. Chạy backend API
 
 ```bash
-make docker-test
-# or
-docker compose run --rm api make test
-docker compose run --rm api pytest
-docker compose run --rm api python3 scripts/test_news_pipeline.py
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Why Python 3.11 container is used
+Swagger UI:
 
-The project targets Python 3.11. Running backend commands through Docker avoids host Python mismatches such as Python 3.14 dependency build failures.
+```text
+http://localhost:8000/docs
+```
 
-## Run Frontend
+### 7.5. Chạy frontend dashboard
 
 ```bash
 cd frontend
-cp .env.example .env.local
-bun install
-bun run dev
+npm install
+npm run dev
 ```
 
-Set:
+Truy cập dashboard:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## 8. Các màn hình chính
+
+| Màn hình | Chức năng |
+|---|---|
+| Dashboard | Tổng quan tình trạng giao thông, hệ thống, model và dữ liệu |
+| Live Map | Hiển thị bản đồ đoạn đường, lớp phủ thời tiết và trạng thái ùn tắc |
+| Forecast | Dự báo tốc độ theo segment và horizon |
+| Hotspots | Hiển thị các cụm ùn tắc đang hoạt động |
+| Alerts | Theo dõi và xử lý cảnh báo giao thông |
+| Explanations | Giải thích các yếu tố ảnh hưởng tới dự báo |
+| Monitoring | Theo dõi trạng thái API, dữ liệu, pipeline và model |
+| Settings | Cấu hình giao diện và tuỳ chọn ứng dụng |
+
+---
+
+## 9. Các service và URL quan trọng
+
+| Dịch vụ | URL | Ghi chú |
+|---|---|---|
+| Traffic Dashboard | `http://localhost:5173` | Giao diện chính |
+| FastAPI Docs | `http://localhost:8000/docs` | API documentation |
+| Airflow UI | `http://localhost:8088` | `admin / admin` |
+| Kafka Bootstrap | `localhost:9092` | Không có UI trong compose hiện tại |
+| Redis CLI | `docker exec -it big-data-redis-1 redis-cli` | Kiểm tra cache/local service |
+| Neo4j Browser | `http://localhost:7474` | `neo4j / password` |
+| MLflow UI | `http://localhost:5000` | Theo dõi experiment |
+| MinIO Console | `http://localhost:9001` | Optional lakehouse profile |
+| Trino UI | `http://localhost:8888` | Optional lakehouse profile |
+
+---
+
+## 10. Các lệnh Makefile chính
 
 ```bash
-VITE_API_BASE_URL=http://localhost:8000
+make up              # Khởi động local stack
+make down            # Dừng local stack
+make pipeline        # Chạy pipeline xử lý dữ liệu
+make dq-check        # Kiểm tra chất lượng dữ liệu
+make stream-test     # Chạy Kafka bounded replay demo
+make train           # Huấn luyện model
+make mlflow-test     # Kiểm tra MLflow tracking
+make neo4j-import    # Import graph vào Neo4j
+make graph-test      # Kiểm tra graph
+make api-smoke       # Kiểm tra API
+make benchmark       # Benchmark API
+make frontend-smoke  # Kiểm tra frontend
+make test            # Chạy test
+make ci-local        # Chạy pipeline + DQ + test + frontend
 ```
-
-Build:
-
-```bash
-bun run build
-```
-
-## Run Docker Infrastructure
-
-Docker Compose reads shell environment variables or a `.env` file. To use `.env.local`, pass it explicitly:
-
-```bash
-docker compose --env-file .env.local up -d
-make create-topics
-make health
-```
-
-Stop:
-
-```bash
-make down
-```
-
-The Spark services are currently lightweight placeholders in compose; local pipeline scripts are the reliable path for building `data/` in this repo state.
-
-## Run Tests
-
-```bash
-python3 scripts/test_news_pipeline.py
-pytest
-```
-
-Docker-based Python 3.11 test path:
-
-```bash
-make docker-test
-docker compose run --rm api make test
-```
-
-Open a Python 3.11 shell in the same image:
-
-```bash
-make docker-shell
-```
-
-Frontend:
-
-```bash
-cd frontend
-bun run build
-```
-
-Demo evidence:
-
-```bash
-make demo-check
-make benchmark-demo
-make streaming-mini-demo
-```
-
-`make streaming-mini-demo` writes a SKIPPED report when Kafka is not running. Performance reports only contain measured endpoint values; unavailable metrics are marked `NOT MEASURED`.
-
-Tests that require live external APIs or the full Docker stack should be kept as integration tests and skipped unless the needed services are available.
-
-## Known Limitations
-
-- API endpoints are local-data backed, not yet connected to Trino/Redis/model registry.
-- Some frontend views still contain demo-only UI states where no backend endpoint exists.
-- `routing` is still a demo endpoint because no road graph routing service is wired.
-- Compose Spark master/worker are placeholders, not a production Spark cluster image.
-- ML training still expects an Iceberg Gold table unless adapted to a local CSV training path.
-- Data coverage in the current raw snapshots has large time gaps for some segments.
-- `/hotspots/predicted` is prototype explainable risk scoring and not a calibrated production risk engine.
-- The reliable demo path is local/batch-oriented. Kafka/streaming is minimal evidence or target architecture unless the mini-demo report shows PASS.

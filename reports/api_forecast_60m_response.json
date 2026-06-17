@@ -1,0 +1,31 @@
+{
+  "path": "/traffic/predict/HN_005?horizon=60m",
+  "status_code": 200,
+  "response": {
+    "segment_id": "HN_005",
+    "horizon": "60m",
+    "predicted_speed": 29.259,
+    "current_speed": 26.639,
+    "current_jam_factor": 2.436,
+    "model_name": "extra_trees",
+    "model_artifact": "models/selected_model_60m_lightgbm.joblib",
+    "model_source": "results/cta_model_pack_final_v1_20260613T162016Z",
+    "data_source": "gold_local",
+    "input_source": "latest_segment_features",
+    "is_fallback": false,
+    "required_feature_count": 62,
+    "available_feature_count": 62,
+    "filled_feature_count": 0,
+    "feature_fill_strategy": null,
+    "missing_features": [],
+    "latest_timestamp": "2026-06-08T23:45:00",
+    "warning": null,
+    "confidence_band": [
+      21.759,
+      36.759
+    ],
+    "reliability_level": "low",
+    "feature_coverage_ratio": 1.0,
+    "data_freshness_seconds": 767981
+  }
+}

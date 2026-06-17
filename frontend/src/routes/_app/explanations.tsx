@@ -69,6 +69,9 @@ type Explanation = {
   model_artifact: string;
   data_source: string;
   attribution_method: string;
+  method_description?: string;
+  reliability_level?: "High" | "Medium" | "Low";
+  reliability_reasons?: string[];
   required_feature_count: number;
   available_feature_count: number;
   filled_feature_count: number;
@@ -129,13 +132,15 @@ function baselineP50(explanation?: Explanation) {
 }
 
 function reliabilityLevel(explanation?: Explanation): "High" | "Medium" | "Low" {
+  if (explanation?.reliability_level) return explanation.reliability_level;
   const required = explanation?.required_feature_count ?? 0;
   const available = explanation?.available_feature_count ?? 0;
   if (!required || available / required < 0.9 || (explanation?.missing_features?.length ?? 0) > 5) return "Low";
   return weatherAvailable(explanation?.weather_context) ? "High" : "Medium";
 }
 
-function reliabilityText(level: "High" | "Medium" | "Low") {
+function reliabilityText(level: "High" | "Medium" | "Low", explanation?: Explanation) {
+  if (explanation?.reliability_reasons?.length) return explanation.reliability_reasons.join(" ");
   if (level === "High") return "Full feature coverage and context data available";
   if (level === "Medium") return "Feature coverage is full, weather context is unavailable";
   return "Many features are missing or filled from defaults";
@@ -213,7 +218,7 @@ function ExplanationsPage() {
   const setHorizon = (next: "15m" | "60m") => navigate({ search: { city, segment: selectedSegmentId, horizon: next } });
 
   return (
-    <PlaceholderPage title="Explanations" subtitle="Model-derived feature attribution for local traffic forecasts">
+    <PlaceholderPage title="Explanations" subtitle="Single-feature baseline perturbation for local traffic forecasts">
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 flex flex-wrap items-center gap-2">
           {CITIES.map((item) => (
@@ -276,7 +281,10 @@ function ExplanationsPage() {
             </div>
             <ReliabilityBadge level={reliability} />
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">{reliabilityText(reliability)}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{reliabilityText(reliability, explanation)}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Method: {explanation?.method_description ?? "Each feature is replaced with a baseline value one at a time; the prediction delta is used as attribution."}
+          </p>
           <p className="mt-3 text-sm leading-relaxed text-foreground">{narrative.summary}</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {narrative.bullets.slice(0, 5).map((item) => (
@@ -304,7 +312,7 @@ function ExplanationsPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="text-base font-semibold">Top Feature Contributions</h3>
-              <p className="text-xs text-muted-foreground">Green features increase the predicted speed. Red features decrease the predicted speed.</p>
+              <p className="text-xs text-muted-foreground">Perturbation deltas only. Green features increase the predicted speed; red features decrease it.</p>
             </div>
             <span className="rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
               {explanation?.available_feature_count ?? prediction?.available_feature_count ?? 0}/{explanation?.required_feature_count ?? prediction?.required_feature_count ?? 0} features
@@ -378,7 +386,7 @@ function ExplanationsPage() {
             <ContextRow label="Source" value={explanation?.data_source ?? prediction?.data_source ?? "n/a"} />
             <ContextRow label="Filled features" value={`${explanation?.filled_feature_count ?? prediction?.filled_feature_count ?? 0}`} />
             <p className="pt-2 text-xs leading-relaxed text-muted-foreground">
-              Each feature is replaced with its baseline value one at a time. The change in prediction is used as the feature contribution.
+              {explanation?.method_description ?? "Each feature is replaced with its baseline value one at a time. The change in prediction is used as the feature contribution."}
             </p>
           </ContextPanel>
         </div>

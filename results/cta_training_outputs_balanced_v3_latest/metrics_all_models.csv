@@ -1,0 +1,3 @@
+task,selected_model,artifact,rows,feature_count,mae,rmse,r2,dataset_path,training_mode
+15m_speed,extra_trees,best_model_15m_speed_extra_trees.joblib,1690,68,1.257383333333333,1.6227695750629534,0.34344318732024015,data/gold/train_features_15m.parquet,trained
+60m_speed,extra_trees,best_model_60m_speed_extra_trees.joblib,910,66,1.3987499999999997,1.7831243026795922,0.2435515667425986,data/gold/train_features_60m.parquet,trained

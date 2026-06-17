@@ -37,6 +37,8 @@ type Hotspot = {
   baseline: string;
   lat: number;
   lon: number;
+  source: string;
+  confidence: string;
 };
 
 type ApiHotspot = {
@@ -55,7 +57,7 @@ type ApiHotspot = {
 
 const toHotspot = (h: ApiHotspot): Hotspot & { city: CityKey } => ({
   id: h.hotspot_id,
-  name: `Cluster ${h.cluster_id}`,
+  name: `${h.city === "hanoi" ? "Hanoi" : "HCMC"} Corridor Cluster ${h.cluster_id}`,
   area: h.city === "hanoi" ? "Hanoi" : "Ho Chi Minh City",
   severity: (h.severity.charAt(0).toUpperCase() + h.severity.slice(1)) as Severity,
   segments: h.num_segments,
@@ -66,6 +68,8 @@ const toHotspot = (h: ApiHotspot): Hotspot & { city: CityKey } => ({
   baseline: `+ ${Math.round(h.avg_jam_factor * 10)}%`,
   lat: h.center_lat,
   lon: h.center_lon,
+  source: h.hotspot_id.includes("demo") ? "demo coverage" : "API rule-based",
+  confidence: h.num_segments >= 5 && h.avg_jam_factor >= 5 ? "High" : "Medium",
   city: h.city,
 });
 
@@ -171,7 +175,7 @@ function HotspotsPage() {
   }, [leaflet]);
 
   return (
-    <PlaceholderPage title="Hotspots" subtitle="Detected congestion clusters and abnormal traffic regions">
+    <PlaceholderPage title="Hotspots" subtitle="Local congestion clusters from Gold-derived hotspot rules">
       <div className="grid grid-cols-12 gap-4">
         <div className="col-span-12 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
@@ -197,7 +201,7 @@ function HotspotsPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-base font-semibold">Hotspot Map</h3>
-              <p className="text-xs text-muted-foreground">Spatial distribution of active congestion clusters · Data source: API</p>
+              <p className="text-xs text-muted-foreground">Spatial distribution of active congestion clusters · source is shown per cluster</p>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {(["hanoi", "hcmc", "all"] as HotspotCity[]).map((c) => (
@@ -246,7 +250,7 @@ function HotspotsPage() {
                       eventHandlers={{ click: () => handleMapClick(h) }}
                     >
                       <Tooltip permanent direction="center" className="hotspot-label">
-                        {h.id}
+                        {h.name}
                       </Tooltip>
                     </CircleMarker>
                   );
@@ -292,10 +296,10 @@ function HotspotsPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">{h.id} · {h.name}</span>
+                        <span className="text-sm font-semibold">{h.name}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sevTone[h.severity]}`}>{h.severity}</span>
                       </div>
-                      <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="h-3 w-3" /> {h.area}</div>
+                      <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground"><MapPin className="h-3 w-3" /> {h.area} · raw id {h.id}</div>
                     </div>
                     <div className="flex items-center gap-1 text-[11px]">
                       <TrendIcon trend={h.trend} />
@@ -307,6 +311,34 @@ function HotspotsPage() {
                     <div><div className="text-muted-foreground">Avg speed</div><div className="font-semibold">{h.avgSpeed} km/h</div></div>
                     <div><div className="text-muted-foreground">Jam</div><div className="font-semibold">{h.jam}</div></div>
                     <div><div className="text-muted-foreground">Since</div><div className="font-semibold">{h.started}</div></div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="rounded-xl bg-secondary px-2 py-1.5">
+                      <div className="text-muted-foreground">Source</div>
+                      <div className="font-semibold">{h.source}</div>
+                    </div>
+                    <div className="rounded-xl bg-secondary px-2 py-1.5">
+                      <div className="text-muted-foreground">Confidence</div>
+                      <div className="font-semibold">{h.confidence}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        navigate({ to: "/live-map", search: { city: h.city } });
+                      }}
+                      className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold"
+                    >
+                      Live Map
+                    </button>
+                    <button
+                      disabled
+                      title="Hotspot API does not expose top contributing segment IDs yet."
+                      className="rounded-full border border-border px-3 py-1 text-[11px] font-semibold text-muted-foreground opacity-70"
+                    >
+                      Forecast
+                    </button>
                   </div>
                 </div>
               );

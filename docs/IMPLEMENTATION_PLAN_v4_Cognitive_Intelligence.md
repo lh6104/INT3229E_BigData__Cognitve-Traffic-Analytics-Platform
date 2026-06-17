@@ -626,9 +626,9 @@ cognitive-traffic-analytics/
 
 ### 6.1 Setup & Cấu hình
 
-- [ ] Tạo `frontend/.env.local` với `NEXT_PUBLIC_API_URL=http://localhost:8000`
+- [ ] Tạo `frontend/.env.local` với `VITE_API_BASE_URL=http://localhost:8000`
 - [ ] Tạo `lib/api/client.ts` — Axios instance với `baseURL` từ env + global error interceptor
-- [ ] Xác nhận FastAPI có bật CORS cho `http://localhost:3000`
+- [ ] Xác nhận FastAPI có bật CORS cho `http://localhost:5173`
 
 ### 6.2 Dashboard page
 

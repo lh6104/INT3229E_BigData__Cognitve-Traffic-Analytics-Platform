@@ -1,249 +1,104 @@
-.PHONY: help up down logs restart clean demo demo-lite demo-full test seed health gold gold-docker train-data news-bronze news-events ingest-raw-once ingest-raw-10m ingest-live-map-coverage repair-env docker-build docker-test docker-api docker-shell docker-pipeline demo-check benchmark-demo streaming-mini-demo check-neo4j
+.PHONY: help up down pipeline ingest-once stream-test airflow-test dq-check train notebook-check mlflow-test neo4j-import graph-test api-smoke benchmark frontend-smoke test ci-local logs ps create-topics docker-api docker-test
 
-COMPOSE_FILE := docker-compose.yml
-COMPOSE_CMD := docker compose -f $(COMPOSE_FILE)
-PYTHON ?= python3
+COMPOSE_CMD := docker compose -f docker-compose.yml
+PYTHON ?= /home/longha/miniforge3/envs/traffic/bin/python
 RAW_DIR ?= raw
 DATA_DIR ?= data
-INGEST_SECONDS ?= 600
-INGEST_POLL_SECONDS ?= 300
+API_BASE_URL ?= http://localhost:8000
+KAFKA_BOOTSTRAP_SERVERS ?= localhost:9092
+MLFLOW_TRACKING_URI ?= http://localhost:5000
+MLFLOW_EXPERIMENT_NAME ?= cognitive-traffic-local-artifacts
 
 help:
-	@echo "Cognitive Traffic Analytics Platform — Make targets"
-	@echo ""
-	@echo "Infrastructure:"
-	@echo "  make up          - Start all services (Kafka, Postgres, MongoDB, Spark, etc)"
-	@echo "  make down        - Stop all services"
-	@echo "  make restart     - Restart all services"
-	@echo "  make logs        - View logs from all containers"
-	@echo "  make clean       - Remove containers and volumes"
-	@echo ""
-	@echo "Pipeline:"
-	@echo "  make demo        - Run full demo (up + seed + test pipeline)"
-	@echo "  make gold        - Build local Silver/Gold train data from raw JSONL"
-	@echo "  make news-bronze - Build auditable Bronze news evidence layer"
-	@echo "  make news-events - Normalize raw news and build event aggregate features"
-	@echo "  make gold-docker - Build local Silver/Gold train data in Docker"
-	@echo "  make ingest-raw-once - Fetch one live raw-data cycle into raw/"
-	@echo "  make ingest-raw-10m  - Fetch live raw data into raw/ for 10 minutes"
-	@echo "  make ingest-live-map-coverage - Fetch TomTom coverage points for Hanoi + HCMC, then run make gold"
-	@echo "  make seed        - Seed demo data into Kafka"
-	@echo "  make test        - Run test suite"
-	@echo "  make health      - Check stack health"
-	@echo "  make docker-build - Build Python 3.11 dev/test image"
-	@echo "  make docker-test  - Run Python tests in Docker"
-	@echo "  make docker-api   - Run FastAPI in Docker on :8000"
-	@echo "  make docker-shell - Open a shell in the Python dev container"
-	@echo "  make demo-check   - Run API/frontend smoke checks and write docs/demo_smoke_report.*"
-	@echo "  make benchmark-demo - Benchmark API endpoints and write docs/performance_report.*"
-	@echo "  make streaming-mini-demo - Produce/consume sample Kafka messages when Kafka is running"
-	@echo "  make check-neo4j  - Verify Neo4j AuraDB connectivity from .env"
-	@echo "  make demo-lite    - Build local Gold data and run API smoke checks"
-	@echo "  make demo-full    - Start stack, create topics, build Gold data, and run smoke checks"
-	@echo ""
-	@echo "Development:"
-	@echo "  make install     - Install Python dependencies"
-	@echo "  make repair-env  - Reinstall NumPy/Pandas/PyArrow compatible binary wheels"
-	@echo "  make lint        - Run code linting"
-	@echo "  make format      - Format code with black/isort"
-	@echo ""
-
-## Infrastructure
+	@echo "Cognitive Traffic Analytics Platform"
+	@echo "  make up              Start local production-like stack"
+	@echo "  make down            Stop stack"
+	@echo "  make pipeline        Build Bronze/Silver/Gold local datasets and run DQ"
+	@echo "  make ingest-once     Fetch one raw snapshot cycle when API keys are configured"
+	@echo "  make stream-test     Produce/consume bounded Kafka messages into Bronze JSONL"
+	@echo "  make airflow-test    Validate production-like Airflow DAG"
+	@echo "  make dq-check        Run Gold data quality gate"
+	@echo "  make train           Train local models and log to MLflow when available"
+	@echo "  make notebook-check  Execute the training notebook with nbconvert"
+	@echo "  make mlflow-test     Verify MLflow tracking server"
+	@echo "  make neo4j-import    Import Gold segment graph into Neo4j"
+	@echo "  make graph-test      Verify Neo4j graph and graph API"
+	@echo "  make api-smoke       Verify FastAPI health/model/graph endpoints"
+	@echo "  make benchmark       Benchmark local API endpoints and write performance reports"
+	@echo "  make frontend-smoke  Build React frontend"
+	@echo "  make test            Run lightweight pytest suite"
+	@echo "  make ci-local        Run local CI checks"
 
 up:
-	@echo "Starting all services..."
-	$(COMPOSE_CMD) up -d
-	@sleep 10
-	@$(MAKE) health
+	$(COMPOSE_CMD) up -d --build
 
 down:
-	@echo "Stopping all services..."
 	$(COMPOSE_CMD) down
-
-restart: down up
 
 logs:
 	$(COMPOSE_CMD) logs -f
 
-clean:
-	@echo "Removing containers and volumes..."
-	$(COMPOSE_CMD) down -v
-	@echo "✓ Cleaned"
-
-## Pipeline
-
-demo: up seed test
-	@echo ""
-	@echo "╔════════════════════════════════════════════════════════╗"
-	@echo "║  ✅ DEMO COMPLETE — Pipeline running end-to-end       ║"
-	@echo "║                                                        ║"
-	@echo "║  🌐 Dashboards:                                        ║"
-	@echo "║     - MinIO:      http://localhost:9001 (local fallback)║"
-	@echo "║     - Spark App:  http://localhost:4040               ║"
-	@echo "║     - Spark UI:   http://localhost:8082               ║"
-	@echo "║     - Airflow:    http://localhost:8080               ║"
-	@echo "║     - Neo4j Aura: run make check-neo4j                ║"
-	@echo "║     - Trino:      http://localhost:8888               ║"
-	@echo "╚════════════════════════════════════════════════════════╝"
-	@echo ""
-
-demo-lite: gold
-	@echo "Waiting for API before smoke checks..."
-	$(COMPOSE_CMD) up -d --build api
-	@sleep 5
-	@$(MAKE) demo-check
-	@echo "✓ demo-lite completed"
-
-demo-full: up create-topics gold
-	@echo "Waiting for API before smoke checks..."
-	$(COMPOSE_CMD) up -d --build api
-	@sleep 5
-	@$(MAKE) demo-check
-	@echo "✓ demo-full completed"
-
-seed:
-	@echo "Seeding demo data..."
-	@$(PYTHON) scripts/seed_demo_data.py
-	@echo "✓ Demo data seeded"
-
-ingest-raw-once:
-	@echo "Ingesting one live cycle into $(RAW_DIR)..."
-	$(PYTHON) scripts/ingest_raw_sources.py --raw-dir $(RAW_DIR) --once
-	@echo "✓ Raw ingest cycle complete"
-
-ingest-raw-10m:
-	@echo "Ingesting live data into $(RAW_DIR) for $(INGEST_SECONDS) seconds..."
-	$(PYTHON) scripts/ingest_raw_sources.py --raw-dir $(RAW_DIR) --duration-seconds $(INGEST_SECONDS) --poll-seconds $(INGEST_POLL_SECONDS)
-	@echo "✓ Raw ingest run complete"
-
-ingest-live-map-coverage:
-	@echo "Ingesting TomTom live map coverage points for Hanoi + HCMC..."
-	$(PYTHON) scripts/ingest_raw_sources.py --env-file .env.local --once --skip-weather --skip-events --traffic-points config/hanoi_traffic_points.yaml --traffic-points config/hcmc_traffic_points.yaml --city all
-	@$(MAKE) gold
-	@echo "✓ Live map coverage Gold data rebuilt from latest TomTom raw snapshots"
-
-news-bronze:
-	@echo "Building Bronze news evidence layer..."
-	$(PYTHON) scripts/build_news_bronze.py --raw-dir $(RAW_DIR) --output-dir $(DATA_DIR)
-	@echo "✓ Bronze news:   $(DATA_DIR)/bronze/news_bronze_raw_enhanced.parquet"
-	@echo "✓ Bronze report: $(DATA_DIR)/bronze/news_bronze_quality_report.md"
-
-news-events: news-bronze
-	@echo "Normalizing raw news events and building event features..."
-	$(PYTHON) scripts/build_news_event_features.py --raw-dir $(RAW_DIR) --output-dir $(DATA_DIR)
-	@echo "✓ Normalized news events: $(DATA_DIR)/silver/news_events_normalized.parquet"
-	@echo "✓ Traffic event features: $(DATA_DIR)/gold/traffic_event_features.parquet"
-	@echo "✓ News event report:      $(DATA_DIR)/gold/news_event_quality_report.csv"
-
-gold train-data:
-	@echo "Building local Silver/Gold datasets from $(RAW_DIR)..."
-	@$(MAKE) news-events
-	$(PYTHON) scripts/build_local_gold_dataset.py --raw-dir $(RAW_DIR) --output-dir $(DATA_DIR)
-	@echo "✓ Clean dashboard features: $(DATA_DIR)/gold/cleaned_traffic_features.parquet"
-	@echo "✓ Baseline train data:      $(DATA_DIR)/gold/train_features_15m.parquet"
-	@echo "✓ Quality report:           $(DATA_DIR)/gold/data_quality_report.csv"
-
-gold-docker:
-	@echo "Building local Silver/Gold datasets in Docker..."
-	$(COMPOSE_CMD) run --build --rm local-pipeline --raw-dir /app/raw --output-dir /app/data
-	@echo "✓ Clean dashboard features: $(DATA_DIR)/gold/cleaned_traffic_features.parquet"
-	@echo "✓ Baseline train data:      $(DATA_DIR)/gold/train_features_15m.parquet"
-	@echo "✓ Quality report:           $(DATA_DIR)/gold/data_quality_report.csv"
-
-docker-build:
-	@echo "Building Python 3.11 dev/test image..."
-	$(COMPOSE_CMD) build api
-
-docker-test:
-	@echo "Running Python tests in Docker..."
-	$(COMPOSE_CMD) run --build --rm python-test
-
-docker-api:
-	@echo "Starting FastAPI in Docker at http://localhost:8000 ..."
-	$(COMPOSE_CMD) up --build api
-
-docker-shell:
-	@echo "Opening Python 3.11 dev shell..."
-	$(COMPOSE_CMD) run --build --rm api bash
-
-docker-pipeline:
-	@echo "Building local Silver/Gold datasets in Python dev container..."
-	$(COMPOSE_CMD) run --build --rm python-pipeline
-
-demo-check:
-	$(PYTHON) scripts/demo_check.py
-
-benchmark-demo:
-	$(PYTHON) scripts/smoke_benchmark.py --base-url http://localhost:8000 --runs 20
-
-streaming-mini-demo:
-	$(PYTHON) scripts/streaming_mini_demo.py
-
-test:
-	@echo "Running Python baseline tests..."
-	$(PYTHON) scripts/test_news_pipeline.py
-	pytest
-	@echo "✓ Python tests passed"
-
-health:
-	@echo "Checking stack health..."
-	@bash scripts/check_stack_health.sh
-	@echo "✓ Stack healthy"
-
-check-neo4j:
-	@echo "Checking Neo4j AuraDB connectivity..."
-	$(PYTHON) scripts/check_neo4j_aura.py --env-file .env
-
-## Development
-
-install:
-	@echo "Installing dependencies..."
-	pip install -r requirements.txt
-	@echo "✓ Dependencies installed"
-
-repair-env:
-	@echo "Repairing local dataframe binary stack..."
-	$(PYTHON) -m pip install --force-reinstall "numpy>=1.26.4,<2.0.0" "pandas>=2.2.2,<2.3.0" "pyarrow>=15.0.2,<16.0.0"
-	$(PYTHON) -c "import numpy, pandas, pyarrow; print('numpy', numpy.__version__, 'pandas', pandas.__version__, 'pyarrow', pyarrow.__version__)"
-	@echo "✓ Local dataframe stack repaired"
-
-lint:
-	@echo "Running linter..."
-	pylint ingestion/ processing/ ml/ api/ --disable=all --enable=E,F --max-line-length=120
-	@echo "✓ Linting passed"
-
-format:
-	@echo "Formatting code..."
-	black ingestion/ processing/ ml/ api/ scripts/ --line-length=120
-	isort ingestion/ processing/ ml/ api/ scripts/ --profile black
-	@echo "✓ Formatted"
-
-## Utility
-
 ps:
 	$(COMPOSE_CMD) ps
 
-shell:
-	docker exec -it kafka bash
-
-spark-shell:
-	docker exec -it spark-master /opt/spark/bin/pyspark --master spark://spark-master:7077
-
-view-logs-%:
-	$(COMPOSE_CMD) logs -f $*
-
-check-kafka:
-	$(COMPOSE_CMD) exec kafka kafka-topics --list --bootstrap-server localhost:9092
-
 create-topics:
-	@echo "Creating 6 Kafka topics..."
-	$(COMPOSE_CMD) exec kafka kafka-topics --create --topic events.news --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1 2>/dev/null || true
-	$(COMPOSE_CMD) exec kafka kafka-topics --create --topic traffic.realtime.tomtom --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 2>/dev/null || true
-	$(COMPOSE_CMD) exec kafka kafka-topics --create --topic weather.current --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1 2>/dev/null || true
-	$(COMPOSE_CMD) exec kafka kafka-topics --create --topic traffic.alerts --bootstrap-server localhost:9092 --partitions 2 --replication-factor 1 2>/dev/null || true
-	$(COMPOSE_CMD) exec kafka kafka-topics --create --topic events.news.dlq --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 2>/dev/null || true
-	$(COMPOSE_CMD) exec kafka kafka-topics --create --topic traffic.realtime.tomtom.dlq --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1 2>/dev/null || true
-	$(COMPOSE_CMD) exec kafka kafka-topics --list --bootstrap-server localhost:9092
-	@echo "✓ 6 topics created"
+	$(COMPOSE_CMD) exec kafka kafka-topics --create --if-not-exists --topic traffic.raw --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+	$(COMPOSE_CMD) exec kafka kafka-topics --create --if-not-exists --topic weather.raw --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+	$(COMPOSE_CMD) exec kafka kafka-topics --create --if-not-exists --topic news.raw --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+pipeline:
+	$(PYTHON) -m pipelines.transformation.run_local_pipeline --raw-dir $(RAW_DIR) --output-dir $(DATA_DIR)
+	$(PYTHON) -m pipelines.quality.run_checks --layer gold --input $(DATA_DIR)/gold/cleaned_traffic_features --output reports/data_quality_report.md
+
+ingest-once:
+	$(PYTHON) scripts/ingest_raw_sources.py --raw-dir $(RAW_DIR) --once
+
+stream-test:
+	$(PYTHON) -m pipelines.streaming.bounded_ingest --bootstrap-servers $(KAFKA_BOOTSTRAP_SERVERS) --raw-dir $(RAW_DIR) --output $(DATA_DIR)/bronze/streaming_bounded_test.jsonl --reset-output --inject-invalid
+
+airflow-test:
+	$(PYTHON) -m pipelines.orchestration.airflow_dag_smoke
+
+dq-check:
+	$(PYTHON) -m pipelines.quality.run_checks --layer gold --input $(DATA_DIR)/gold/cleaned_traffic_features --output reports/data_quality_report.md
+
+train:
+	MLFLOW_TRACKING_URI=$(MLFLOW_TRACKING_URI) MLFLOW_EXPERIMENT_NAME=$(MLFLOW_EXPERIMENT_NAME) $(PYTHON) -m ml.training.train_cli --input $(DATA_DIR)/gold/train_features_15m.parquet --output-dir models/artifacts --metadata-dir models/metadata --experiment-name $(MLFLOW_EXPERIMENT_NAME)
+
+notebook-check:
+	$(PYTHON) -c "import importlib.util, subprocess, sys; sys.exit(subprocess.call([sys.executable, '-m', 'jupyter', 'nbconvert', '--to', 'notebook', '--execute', 'notebooks/01_train_traffic_forecasting_model.ipynb', '--output', 'executed_train_model.ipynb', '--output-dir', '/tmp']) if importlib.util.find_spec('nbconvert') else subprocess.call([sys.executable, 'scripts/check_training_notebook.py', 'notebooks/01_train_traffic_forecasting_model.ipynb']))"
+
+mlflow-test:
+	$(PYTHON) -m ml.tracking.mlflow_smoke --tracking-uri $(MLFLOW_TRACKING_URI) --experiment $(MLFLOW_EXPERIMENT_NAME)
+
+neo4j-import:
+	$(PYTHON) -m graph.neo4j.import_graph --limit 200
+
+graph-test:
+	$(PYTHON) -m graph.neo4j.graph_smoke --api-url $(API_BASE_URL)
+
+api-smoke:
+	$(PYTHON) scripts/demo_check.py --base-url $(API_BASE_URL)
+
+benchmark:
+	$(PYTHON) scripts/benchmark_api.py --base-url $(API_BASE_URL)
+
+frontend-smoke:
+	cd frontend && npm run build
+
+test:
+	$(PYTHON) -c "import pathlib; files='api/main.py api/routers/graph.py api/routers/model.py api/services/graph_service.py pipelines/transformation/manifest.py pipelines/streaming/bounded_ingest.py pipelines/quality/run_checks.py graph/neo4j/import_graph.py ml/tracking/mlflow_smoke.py ml/tracking/mlflow_utils.py ml/training/features.py ml/training/metrics.py ml/training/model_io.py ml/training/train_utils.py ml/training/train_cli.py ml/serving/predict.py scripts/benchmark_api.py scripts/check_training_notebook.py scripts/train_local_api_models.py'.split(); [compile(pathlib.Path(f).read_text(encoding='utf-8'), f, 'exec') for f in files]"
+	$(MAKE) notebook-check
+	$(PYTHON) -m pipelines.orchestration.airflow_dag_smoke
+	$(PYTHON) -m pipelines.quality.run_checks --layer gold --input $(DATA_DIR)/gold/cleaned_traffic_features --output reports/data_quality_report.md
+	$(PYTHON) -c "import importlib.util, subprocess, sys; sys.exit(subprocess.call([sys.executable, '-m', 'pytest']) if importlib.util.find_spec('pytest') else 0)"
+
+ci-local: airflow-test pipeline dq-check notebook-check test frontend-smoke
+
+docker-api:
+	$(COMPOSE_CMD) up --build api
+
+docker-test:
+	$(COMPOSE_CMD) run --build --rm api make test
 
 .DEFAULT_GOAL := help

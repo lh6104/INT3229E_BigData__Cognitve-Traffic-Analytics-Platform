@@ -518,7 +518,7 @@ Application configuration with environment variables:
 
 ```python
 # Redis
-REDIS_URL = "redis://localhost:6379/0"
+REDIS_URL = "redis://localhost:6380/0"          # Host port from current docker-compose.yml
 DEDUP_URL_TTL = 30 * 86400       # 30 days cache
 
 # Kafka
@@ -526,7 +526,7 @@ KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
 KAFKA_TOPIC_EVENTS = "events.news"
 
 # Nominatim Geocoding
-NOMINATIM_URL = "http://localhost:8080"          # Self-hosted
+NOMINATIM_URL = ""                              # Optional self-hosted Nominatim URL
 NOMINATIM_PUBLIC_URL = "https://nominatim..."    # Fallback
 
 # MinIO Storage

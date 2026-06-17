@@ -1,0 +1,74 @@
+{
+  "path": "/model/status?load_models=false",
+  "status_code": 200,
+  "response": {
+    "model_dir": "/home/longha/Desktop/big-data/results/cta_model_pack_final_v1_20260613T162016Z",
+    "ready": true,
+    "load_models": false,
+    "horizons": {
+      "15m": {
+        "artifact": "models/selected_model_15m_lightgbm.joblib",
+        "exists": true,
+        "size_bytes": 6787404,
+        "loaded": false,
+        "model_class": null,
+        "feature_count": null,
+        "model_name": null,
+        "error": null
+      },
+      "60m": {
+        "artifact": "models/selected_model_60m_lightgbm.joblib",
+        "exists": true,
+        "size_bytes": 6783275,
+        "loaded": false,
+        "model_class": null,
+        "feature_count": null,
+        "model_name": null,
+        "error": null
+      },
+      "240m": {
+        "artifact": "models/selected_model_240m_lightgbm.joblib",
+        "exists": true,
+        "size_bytes": 6780033,
+        "loaded": false,
+        "model_class": null,
+        "feature_count": null,
+        "model_name": null,
+        "error": null
+      }
+    },
+    "training_summary": [
+      {
+        "task": "15m_speed",
+        "selected_model": "lightgbm",
+        "mae": 1.224087825205643,
+        "rmse": 1.640874837779288,
+        "r2": 0.9524006695159954,
+        "rows": 8640,
+        "feature_count": 62,
+        "artifact": "models/selected_model_15m_lightgbm.joblib"
+      },
+      {
+        "task": "60m_speed",
+        "selected_model": "lightgbm",
+        "mae": 1.2717418887461442,
+        "rmse": 1.7230878929785496,
+        "r2": 0.9475962869897496,
+        "rows": 8640,
+        "feature_count": 62,
+        "artifact": "models/selected_model_60m_lightgbm.joblib"
+      },
+      {
+        "task": "240m_speed",
+        "selected_model": "lightgbm",
+        "mae": 1.30163504354461,
+        "rmse": 1.7477433477093969,
+        "r2": 0.9465258154507907,
+        "rows": 8640,
+        "feature_count": 62,
+        "artifact": "models/selected_model_240m_lightgbm.joblib"
+      }
+    ],
+    "metrics_summary": []
+  }
+}

@@ -728,6 +728,19 @@ def write_dataset(df: pd.DataFrame, path_without_suffix: Path) -> None:
     LOGGER.info("Wrote %s rows to %s", len(df), csv_path)
 
 
+def write_partitioned_dataset(df: pd.DataFrame, output_dir: Path, partition_cols: list[str]) -> None:
+    """Write an analytics-friendly partitioned Parquet copy without changing serving files."""
+    available = [col for col in partition_cols if col in df.columns]
+    if not available:
+        return
+    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        df.to_parquet(output_dir, index=False, partition_cols=available)
+        LOGGER.info("Wrote partitioned Parquet copy to %s partitioned_by=%s", output_dir, available)
+    except Exception as exc:
+        LOGGER.warning("Could not write partitioned dataset %s: %s", output_dir, exc)
+
+
 def write_markdown_report(report: pd.DataFrame, horizon_stats: pd.DataFrame, path: Path) -> None:
     def markdown_table(df: pd.DataFrame) -> str:
         if df.empty:
@@ -797,6 +810,7 @@ def build(raw_dir: Path, output_dir: Path, bucket_minutes: int, primary_city: st
     write_dataset(features, gold_dir / "cleaned_traffic_features")
     write_dataset(features, gold_dir / "cleaned_traffic_features_enriched")
     write_dataset(features, gold_dir / "traffic_features")
+    write_partitioned_dataset(features, gold_dir / "cleaned_traffic_features_partitioned", ["city", "date"])
 
     horizon_rows = []
     dropped_frames = []

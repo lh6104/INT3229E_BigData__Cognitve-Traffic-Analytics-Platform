@@ -1,0 +1,299 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: ruok,stat,mntr
+    ports:
+      - "2181:2181"
+    networks:
+      - traffic-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - traffic-net
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - traffic-net
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-traffic_analytics}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - traffic-net
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - traffic-net
+
+  neo4j:
+    image: neo4j:5.13
+    profiles:
+      - local-graph
+    ports:
+      - "7687:7687"
+      - "7474:7474"
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/password}
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - traffic-net
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - traffic-net
+
+  spark-master:
+    image: docker.io/library/python:3.11-slim
+    command: sleep 1000000
+    ports:
+      - "8082:8080"
+      - "7077:7077"
+      - "4040:4040"
+    volumes:
+      - ./processing:/opt/spark-apps/processing
+    networks:
+      - traffic-net
+
+  spark-worker:
+    image: docker.io/library/python:3.11-slim
+    command: sleep 1000000
+    ports:
+      - "8083:8081"
+    volumes:
+      - ./processing:/opt/spark-apps/processing
+    networks:
+      - traffic-net
+
+  hive-metastore:
+    image: apache/hive:4.0.0
+    restart: unless-stopped
+    ports:
+      - "9083:9083"
+    depends_on:
+      - postgres
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      DB_TYPE: postgres
+      POSTGRES_DB: traffic_analytics
+      POSTGRES_HOSTNAME: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/traffic_analytics
+        -Djavax.jdo.option.ConnectionUserName=postgres
+        -Djavax.jdo.option.ConnectionPassword=${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - ./infra/hive/lib/postgresql-42.7.4.jar:/opt/hive/lib/postgresql-42.7.4.jar:ro
+    networks:
+      - traffic-net
+
+  trino:
+    image: trinodb/trino:435
+    ports:
+      - "8888:8080"
+    depends_on:
+      - hive-metastore
+      - postgres
+      - minio
+    volumes:
+      - ./infra/trino/catalog:/etc/trino/catalog
+    networks:
+      - traffic-net
+
+  airflow:
+    image: apache/airflow:2.8.0
+    user: "0:0"
+    ports:
+      - "8088:8080"
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-traffic_analytics}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-traffic_analytics}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-ECigkFHohchnVYlMiZfEj01VFgZ91yAs1h7qL6jz7po=}
+      TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
+      OWM_API_KEY: ${OWM_API_KEY:-}
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./processing:/opt/airflow/processing
+      - ./ingestion:/opt/airflow/ingestion
+      - ./models:/opt/airflow/models
+      - ./infra:/opt/airflow/infra
+      - ./raw:/opt/airflow/raw
+      - ./sources.yaml:/opt/airflow/sources.yaml:ro
+    command: >
+      bash -c "
+      python -c \"import socket,time; [socket.create_connection(('postgres',5432),2).close() if not time.sleep(0) else None for _ in range(1)]\" || sleep 10;
+      airflow db migrate || airflow db init &&
+      airflow users create --username ${AIRFLOW_ADMIN_USERNAME:-admin} --password ${AIRFLOW_ADMIN_PASSWORD:-admin} --firstname Admin --lastname Admin --role Admin --email ${AIRFLOW_ADMIN_EMAIL:-admin@example.com} 2>/dev/null || true &&
+      airflow webserver &
+      airflow scheduler
+      "
+    networks:
+      - traffic-net
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    profiles:
+      - dev
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      API_DATA_DIR: /app/data
+      CTA_MODEL_DIR: /app/results/cta_model_pack_final_v1_20260613T162016Z
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      MINIO_ENDPOINT: minio:9000
+      NOMINATIM_URL: http://nominatim:8080
+      TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
+      OWM_API_KEY: ${OWM_API_KEY:-}
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      S3_BUCKET: ${S3_BUCKET:-cognitive-traffic-lakehouse}
+      S3_WAREHOUSE: ${S3_WAREHOUSE:-s3a://cognitive-traffic-lakehouse/warehouse}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      NEO4J_URI: ${NEO4J_URI:-}
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+    volumes:
+      - .:/app
+    networks:
+      - traffic-net
+
+  python-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    profiles:
+      - test
+    command: make test
+    environment:
+      API_DATA_DIR: /app/data
+      CTA_MODEL_DIR: /app/results/cta_model_pack_final_v1_20260613T162016Z
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      MINIO_ENDPOINT: minio:9000
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      S3_BUCKET: ${S3_BUCKET:-cognitive-traffic-lakehouse}
+      S3_WAREHOUSE: ${S3_WAREHOUSE:-s3a://cognitive-traffic-lakehouse/warehouse}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+    volumes:
+      - .:/app
+    networks:
+      - traffic-net
+
+  python-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    profiles:
+      - pipeline
+    command: make gold
+    environment:
+      API_DATA_DIR: /app/data
+      CTA_MODEL_DIR: /app/results/cta_model_pack_final_v1_20260613T162016Z
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      S3_BUCKET: ${S3_BUCKET:-cognitive-traffic-lakehouse}
+      S3_WAREHOUSE: ${S3_WAREHOUSE:-s3a://cognitive-traffic-lakehouse/warehouse}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+    volumes:
+      - .:/app
+    networks:
+      - traffic-net
+
+  local-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    profiles:
+      - pipeline
+    volumes:
+      - ./raw:/app/raw:ro
+      - ./data:/app/data
+    networks:
+      - traffic-net
+
+networks:
+  traffic-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  minio_data:

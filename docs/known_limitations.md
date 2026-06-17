@@ -42,7 +42,7 @@ This project is ready for a capstone/demo walkthrough, but it is not a productio
 
 ## Performance Evidence
 
-- Use `make benchmark-demo` or `python scripts/smoke_benchmark.py --base-url http://localhost:8000 --runs 20` to generate `docs/performance_report.md`.
+- Use `make benchmark` or `python scripts/benchmark_api.py --base-url http://localhost:8000 --requests 20` to generate `reports/api_benchmark.md`.
 - Performance metrics are not production SLA evidence. If the API is not running, report rows are marked failed or `NOT MEASURED`.
 
 ## Model Artifacts

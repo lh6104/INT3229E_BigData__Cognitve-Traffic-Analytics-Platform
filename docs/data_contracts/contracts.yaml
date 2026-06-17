@@ -1,0 +1,137 @@
+datasets:
+  raw_traffic:
+    layer: raw
+    path: raw/traffic/*.jsonl
+    grain: source snapshot record
+    primary_key: [city, segment_id, timestamp]
+    timestamp_column: timestamp
+    required_columns:
+      city: {type: string, nullable: false}
+      segment_id: {type: string, nullable: false}
+      timestamp: {type: timestamp, nullable: false}
+      currentSpeed: {type: numeric, nullable: false, min: 0, max: 150}
+      freeFlowSpeed: {type: numeric, nullable: false, min: 1, max: 180}
+      jamFactor: {type: numeric, nullable: false, min: 0, max: 10}
+    optional_columns:
+      confidence: {type: numeric, nullable: true, min: 0, max: 1}
+      lat: {type: numeric, nullable: true}
+      lon: {type: numeric, nullable: true}
+    warnings:
+      - Raw JSONL schema varies by source snapshot; validation is best-effort.
+
+  raw_weather:
+    layer: raw
+    path: raw/weather/*.jsonl
+    grain: weather cell timestamp
+    primary_key: [city, weather_cell_id, timestamp]
+    timestamp_column: timestamp
+    required_columns:
+      city: {type: string, nullable: false}
+      timestamp: {type: timestamp, nullable: false}
+    optional_columns:
+      weather_cell_id: {type: string, nullable: true}
+      temp: {type: numeric, nullable: true, min: -50, max: 60}
+      humidity: {type: numeric, nullable: true, min: 0, max: 100}
+      rain_1h: {type: numeric, nullable: true, min: 0}
+    warnings:
+      - Some raw weather files derive weather_cell_id during Silver processing.
+
+  bronze_news:
+    layer: bronze
+    path: data/bronze/news_bronze_raw_enhanced.parquet
+    grain: news article
+    primary_key: [article_id]
+    timestamp_column: published_at_utc
+    required_columns:
+      article_id: {type: string, nullable: false}
+      source_url: {type: string, nullable: false}
+      title: {type: string, nullable: false}
+      published_at_utc: {type: timestamp, nullable: true}
+    optional_columns:
+      summary_text: {type: string, nullable: true}
+      city: {type: string, nullable: true}
+
+  silver_traffic_cleaned:
+    layer: silver
+    path: data/silver/traffic_cleaned.parquet
+    grain: segment time_bucket
+    primary_key: [city, segment_id, time_bucket]
+    timestamp_column: time_bucket
+    freshness_warning_hours: 168
+    required_columns:
+      city: {type: string, nullable: false}
+      segment_id: {type: string, nullable: false}
+      time_bucket: {type: timestamp, nullable: false}
+      currentSpeed: {type: numeric, nullable: false, min: 0, max: 150}
+      freeFlowSpeed: {type: numeric, nullable: false, min: 1, max: 180}
+      jamFactor: {type: numeric, nullable: false, min: 0, max: 10}
+      weather_cell_id: {type: string, nullable: false}
+    optional_columns:
+      confidence: {type: numeric, nullable: true, min: 0, max: 1}
+      geometry: {type: string, nullable: true}
+
+  silver_weather_cleaned:
+    layer: silver
+    path: data/silver/weather_cleaned.parquet
+    grain: weather cell time_bucket
+    primary_key: [city, weather_cell_id, time_bucket]
+    timestamp_column: time_bucket
+    freshness_warning_hours: 168
+    required_columns:
+      city: {type: string, nullable: false}
+      weather_cell_id: {type: string, nullable: false}
+      time_bucket: {type: timestamp, nullable: false}
+      temp: {type: numeric, nullable: false, min: -50, max: 60}
+      humidity: {type: numeric, nullable: false, min: 0, max: 100}
+    optional_columns:
+      rain_1h: {type: numeric, nullable: true, min: 0}
+      wind_speed: {type: numeric, nullable: true, min: 0}
+      weather_main: {type: string, nullable: true}
+
+  silver_news_events_normalized:
+    layer: silver
+    path: data/silver/news_events_normalized.parquet
+    grain: normalized news event
+    primary_key: [event_id]
+    timestamp_column: event_time_start
+    required_columns:
+      event_id: {type: string, nullable: false}
+      city: {type: string, nullable: false}
+      event_time_start: {type: timestamp, nullable: false}
+      event_category: {type: string, nullable: false}
+      severity_score: {type: numeric, nullable: false, min: 0, max: 10}
+      traffic_relevance_score: {type: numeric, nullable: false, min: 0, max: 1}
+    optional_columns:
+      district: {type: string, nullable: true}
+      road_name: {type: string, nullable: true}
+
+  gold_cleaned_traffic_features:
+    layer: gold
+    path: data/gold/cleaned_traffic_features.parquet
+    grain: segment time_bucket feature row
+    primary_key: [city, segment_id, time_bucket]
+    timestamp_column: time_bucket
+    freshness_warning_hours: 168
+    required_columns:
+      city: {type: string, nullable: false}
+      segment_id: {type: string, nullable: false}
+      time_bucket: {type: timestamp, nullable: false}
+      currentSpeed: {type: numeric, nullable: false, min: 0, max: 150}
+      freeFlowSpeed: {type: numeric, nullable: false, min: 1, max: 180}
+      jamFactor: {type: numeric, nullable: false, min: 0, max: 10}
+      weather_temperature: {type: numeric, nullable: true, min: -50, max: 60}
+      weather_humidity: {type: numeric, nullable: true, min: 0, max: 100}
+    optional_columns:
+      has_any_event: {type: numeric, nullable: true, min: 0, max: 1}
+      news_event_count_1h: {type: numeric, nullable: true, min: 0}
+      future_speed_15m: {type: numeric, nullable: true, min: 0, max: 150}
+      future_speed_60m: {type: numeric, nullable: true, min: 0, max: 150}
+    leakage_allowed_columns:
+      - future_speed_15m
+      - future_speed_60m
+      - future_speed_240m
+      - has_exact_target_15m
+      - has_exact_target_60m
+      - has_exact_target_240m
+    warnings:
+      - Future speed columns are present in the wide Gold table for training dataset creation and must be excluded from serving features.

@@ -9,7 +9,8 @@ import pandas as pd
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from api.services.local_data import DataUnavailableError, latest_by_segment, normalize_city, traffic_features
+from api.routers.alerts import active_alert_count
+from api.services.local_data import DataUnavailableError, latest_by_segment, normalize_city, traffic_features, train_features
 
 router = APIRouter()
 
@@ -18,6 +19,11 @@ class DashboardSummary(BaseModel):
     city: str
     monitored_segments: int
     active_alerts: int
+    risk_markers: int
+    total_gold_rows: int
+    serving_snapshot_rows: int
+    displayed_segments: int
+    train_rows: int
     free_flow_segments: int
     slow_segments: int
     congested_segments: int
@@ -52,6 +58,11 @@ def _empty_summary(city: str, message: str | None = None) -> DashboardSummary:
         city=city,
         monitored_segments=0,
         active_alerts=0,
+        risk_markers=0,
+        total_gold_rows=0,
+        serving_snapshot_rows=0,
+        displayed_segments=0,
+        train_rows=0,
         free_flow_segments=0,
         slow_segments=0,
         congested_segments=0,
@@ -67,17 +78,29 @@ def get_dashboard_summary(city: str = Query("hanoi", description="City code")):
     """Get latest city-level dashboard metrics from local gold traffic data."""
     city = normalize_city(city) or "hanoi"
     try:
-        latest = latest_by_segment(traffic_features(), city)
+        gold = traffic_features()
+        latest = latest_by_segment(gold, city)
     except DataUnavailableError as exc:
         return _empty_summary(city, str(exc))
 
     if latest.empty:
         return _empty_summary(city, f"No local traffic data found for city '{city}'")
 
+    try:
+        train_rows = int(len(train_features(15))) + int(len(train_features(60)))
+    except DataUnavailableError:
+        train_rows = 0
+
+    risk_markers = int((latest["jamFactor"] >= 3).sum())
     return DashboardSummary(
         city=city,
         monitored_segments=int(latest["segment_id"].nunique()),
-        active_alerts=int((latest["jamFactor"] >= 3).sum()),
+        active_alerts=active_alert_count(city),
+        risk_markers=risk_markers,
+        total_gold_rows=int(len(gold)),
+        serving_snapshot_rows=int(len(latest)),
+        displayed_segments=int(latest["segment_id"].nunique()),
+        train_rows=train_rows,
         free_flow_segments=int((latest["jamFactor"] < 3).sum()),
         slow_segments=int(((latest["jamFactor"] >= 3) & (latest["jamFactor"] < 6)).sum()),
         congested_segments=int((latest["jamFactor"] >= 6).sum()),

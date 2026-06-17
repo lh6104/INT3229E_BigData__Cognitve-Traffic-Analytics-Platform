@@ -68,7 +68,7 @@ Suggested structure for a 10-page IEEE-style capstone report.
 - Frontend build verification.
 - Data coverage statistics.
 - Model metrics and qualitative demo results.
-- `docs/demo_smoke_report.md`, `docs/performance_report.md`, and `docs/streaming_demo_report.md` if generated.
+- `docs/demo_smoke_report.md`, `reports/api_benchmark.md`, and `reports/streaming_demo_report.md` if generated.
 
 ## 10. Limitations And Future Work
 

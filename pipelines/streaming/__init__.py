@@ -1,0 +1,1 @@
+"""Kafka bounded ingestion utilities."""
