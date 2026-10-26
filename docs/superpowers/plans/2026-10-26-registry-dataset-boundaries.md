@@ -259,10 +259,12 @@ Expected: JSON có 12 configured points, 6/6 theo city, mapping unverified, ba b
 ## Checkpoint thực thi P1 — 2026-10-26
 
 - Hoàn thành point/dataset contracts, loaders, `may_serve_current`, readiness CLI, bốn profile khai báo và hướng dẫn README.
-- Xác minh: test suite `conda run -n traffic python -m pytest -q` — 45 passed; có một Starlette deprecation warning từ dependency. Ruff trên các file Python thuộc P1 — passed; CLI smoke — exit 0, 12 điểm (6 Hà Nội/6 TP.HCM), benchmark không đủ điều kiện live current.
+- Xác minh lại: test suite `conda run -n traffic python -m pytest -q` — 46 passed; có một Starlette deprecation warning từ dependency. Ruff trên `src tests orchestration` — passed.
+- Human acceptance P1: report chạy hai lần cho JSON giống nhau; report có đúng 12 điểm, city counts 6/6, mapping `unverified`; benchmark `eligible_for_live_current=false`, acquisition `not_acquired`, rights `unverified`. Bản copy config có duplicate point và bản copy profile gán speed unit cho flow đều bị CLI từ chối với exit 2, không xuất report ra stdout.
+- Runtime recheck: API health và `/traffic/current?city=hanoi` trả HTTP 200 sau khi khởi động lại stack; current traffic trả `[]`. Không có provider key hoặc dữ liệu traffic nên đây không phải bằng chứng live-source integration. Khi API tắt, UI báo current unavailable và không tạo road thay thế; sau khi backend lên, cần reload UI để xóa trạng thái lỗi cũ.
 - Review độc lập chỉ trong phạm vi P1: không có finding actionable.
 - Chưa xác minh provider/road mapping, coverage, quyền sử dụng hoặc artifact dataset; CLI không cung cấp evidence cho các trạng thái đó. `vn-mvp-12` vẫn `configured_unverified`.
 - P2 còn phải gọi policy tại persistence sink và bảo đảm replay/reprocess không ghi vào live namespace. Không sửa producer, sink, event/DB schema trong checkpoint này.
-- Không gọi provider, không tải dataset và không tạo commit.
+- Không gọi provider hoặc tải dataset. P1 implementation nằm trong commit `104ae05`; PostgreSQL nullable-filter regression fix nằm trong `ca3467d`.
 
 Interfaces dùng nhất quán `point_id`, `dataset_id`, `purpose`, `measurement`, `unit`, `mapping_status`. Mọi field/type được định nghĩa trong spec hoặc task; không yêu cầu external data để chạy P1. Parent requirements P2–P8 nằm trong roadmap, chưa được đánh dấu hoàn thành bởi plan này.
