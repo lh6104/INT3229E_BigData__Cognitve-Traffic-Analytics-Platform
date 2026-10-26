@@ -40,6 +40,16 @@ test('explicit HTTPS upstream does not double-prefix or double-slash', async () 
   assert.equal((await handler(new Request('https://dashboard.test/api/monitoring/points?city=all'))).status, 200);
 });
 
+test('proxy removes stale compression headers after fetch decompresses upstream body', async () => {
+  const handler = createHandler({fetchApi: async () => new Response('{"points":12}', {headers: {
+    'content-type': 'application/json', 'content-encoding': 'br', 'content-length': '401',
+  }})});
+  const result = await handler(new Request('https://dashboard.test/api/monitoring/points'));
+  assert.equal(result.headers.get('content-encoding'), null);
+  assert.equal(result.headers.get('content-length'), null);
+  assert.deepEqual(await result.json(), {points: 12});
+});
+
 test('proxy refuses writes and reports connection failure without leaking internals', async () => {
   const handler = createHandler({fetchApi: async () => { throw new Error('secret-sentinel'); }});
   assert.equal((await handler(new Request('http://localhost/api/roads', {method: 'POST'}))).status, 405);

@@ -23,8 +23,18 @@ export function createHandler({clientDir = resolve('dist/client'),
           if (request.headers.has(key)) headers.set(key, request.headers.get(key));
         }
         // Allow a free upstream to wake after idle; the original 10s abort was too short.
-        return await fetchApi(`${upstream}${url.pathname.slice(4)}${url.search}`,
+        const response = await fetchApi(`${upstream}${url.pathname.slice(4)}${url.search}`,
           {method: request.method, headers, signal: AbortSignal.timeout(120000), redirect: 'manual'});
+        // Node fetch transparently decompresses upstream bodies; these headers then describe
+        // the compressed bytes, not the body the HTTP server sends to the browser.
+        const responseHeaders = new Headers(response.headers);
+        responseHeaders.delete('content-encoding');
+        responseHeaders.delete('content-length');
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: responseHeaders,
+        });
       } catch {
         return Response.json({detail: 'Traffic API is unavailable'}, {status: 503});
       }
