@@ -1,32 +1,88 @@
-name: ci-light
+name: ci
 
 on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  python-frontend-light:
+  tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: traffic_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d traffic_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TRAFFIC_TEST_DSN: postgresql://postgres:postgres@localhost:5432/traffic_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: constraints/python311.txt
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install Python dependencies
-        run: pip install -e ".[dev]"
-      - name: Compile production packages
-        run: python -m compileall -q src orchestration
-      - name: Python lint
-        run: ruff check src tests orchestration
-      - name: Python tests
-        run: pytest
-      - name: Frontend build
+      - name: Install tested Python environment
+        run: |
+          pip install -c constraints/python311.txt -e '.[dev]'
+          pip check
+      - name: Compile and lint
+        run: |
+          python -m compileall -q src orchestration scripts
+          ruff check src tests orchestration scripts
+      - name: Unit, API integration and real PostgreSQL tests
+        run: make test PYTHON=python
+      - name: Frontend reproducible install, security audit and build
         working-directory: frontend
         run: |
           npm ci
+          npm audit --audit-level=moderate
           npm run build
+          npx tsc --noEmit
+      - name: Prometheus alert rules
+        run: |
+          docker run --rm --entrypoint /bin/promtool -v "$PWD:/work:ro" -w /work/tests/observability prom/prometheus:v3.13.1 test rules alerts.test.yml
+
+  compose-smoke:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install smoke executor and browser
+        run: |
+          pip install -c constraints/python311.txt -e '.[api]'
+          npm ci --prefix frontend
+          cd frontend && npx playwright install --with-deps chromium
+      - name: Real persistence, browser, telemetry and alert-triggered recovery
+        run: make oncall-demo PYTHON=python
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-smoke-evidence
+          path: |
+            .local/validation/cognitive-rubric-*.json
+            .local/validation/cognitive-rubric-*.log
+          if-no-files-found: ignore

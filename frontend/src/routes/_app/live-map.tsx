@@ -7,7 +7,7 @@ import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
 type CityKey = "hanoi" | "hcmc";
 
 const searchSchema = z.object({
-  city: z.enum(["hanoi", "hcmc", "all"]).catch("hanoi").default("hanoi"),
+  city: z.enum(["hanoi", "hcmc", "all"]).catch("all").default("all"),
 });
 
 export const Route = createFileRoute("/_app/live-map")({
@@ -30,8 +30,8 @@ function LiveMap() {
       <ClientLiveMapView
         city={KEY_TO_LABEL[city]}
         onCityChange={(label) => navigate({ search: { city: LABEL_TO_KEY[label] } })}
-        onViewForecast={(id: string) =>
-          navigate({ to: "/forecast", search: { city: city === "all" ? "hanoi" : city, segment: id } })
+        onViewForecast={(id: string, pointCity: CityKey) =>
+          navigate({ to: "/forecast", search: { city: pointCity, segment: id } })
         }
       />
     </PlaceholderPage>
@@ -41,7 +41,7 @@ function LiveMap() {
 function ClientLiveMapView(props: {
   city: MapCityLabel;
   onCityChange: (city: MapCityLabel) => void;
-  onViewForecast: (segmentId: string) => void;
+  onViewForecast: (segmentId: string, city: CityKey) => void;
 }) {
   const [LiveMapView, setLiveMapView] = useState<null | ComponentType<typeof props>>(null);
 

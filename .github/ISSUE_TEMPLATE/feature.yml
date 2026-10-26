@@ -1,0 +1,36 @@
+name: Requirement delivery
+description: Trace an approved requirement to implementation and evidence
+title: "[Task] "
+labels: [enhancement]
+body:
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirement and tracker IDs
+      description: For example F01, D07 and T02; link the canonical specification.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Problem, scope and ownership
+      description: State the operator problem, owned paths, interfaces and handoff owner.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Include missing-data behavior, idempotency and isolation where applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Verification and evidence
+      description: Record commands, revision, run IDs, actual outputs and links; separate planned from verified.
+  - type: textarea
+    id: limits
+    attributes:
+      label: External gates and limitations
+      description: Identify source rights, real model evaluation, human reviews or hosting still required.

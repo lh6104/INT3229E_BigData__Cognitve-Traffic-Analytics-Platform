@@ -1,20 +1,25 @@
 from __future__ import annotations
 
-import logging
 import time
 from datetime import UTC, datetime
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-from starlette.responses import Response
+from opentelemetry import trace
+from opentelemetry.propagate import extract
+from prometheus_client import REGISTRY, Counter, Histogram
+from prometheus_client.openmetrics.exposition import CONTENT_TYPE_LATEST, generate_latest
+from starlette.responses import JSONResponse, Response
 
+from cognitive_traffic.monitoring.logging import configure_logging
+from cognitive_traffic.monitoring.tracing import configure_tracing, exemplar
 from cognitive_traffic.settings import get_settings
 from cognitive_traffic.storage.postgres import TrafficRepository
 
-logging.basicConfig(format="%(message)s", level=logging.INFO)
-structlog.configure(processors=[structlog.processors.TimeStamper(fmt="iso"), structlog.processors.JSONRenderer()])
+configure_logging()
+configure_tracing()
+structlog.configure(logger_factory=structlog.stdlib.LoggerFactory())
 LOG = structlog.get_logger("traffic-api")
 REQUESTS = Counter("traffic_api_requests_total", "HTTP requests", ("method", "path", "status"))
 LATENCY = Histogram("traffic_api_request_seconds", "HTTP request latency", ("method", "path"))
@@ -35,24 +40,49 @@ app.add_middleware(
 @app.middleware("http")
 async def observe_request(request: Request, call_next):
     started = time.perf_counter()
-    response = await call_next(request)
-    route = request.scope.get("route")
-    path = getattr(route, "path", request.url.path)
-    REQUESTS.labels(request.method, path, str(response.status_code)).inc()
-    LATENCY.labels(request.method, path).observe(time.perf_counter() - started)
-    LOG.info("request", method=request.method, path=path, status=response.status_code)
-    return response
+    status = 500
+    with trace.get_tracer(__name__).start_as_current_span(
+        "operator.http", context=extract(dict(request.headers)), kind=trace.SpanKind.SERVER,
+        record_exception=False, set_status_on_exception=False,
+    ) as span:
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            ctx = span.get_span_context()
+            if ctx.is_valid:
+                response.headers["X-Trace-ID"] = f"{ctx.trace_id:032x}"
+            return response
+        except Exception as exc:
+            span.set_status(trace.StatusCode.ERROR)
+            LOG.error("request_failed", error_type=type(exc).__name__)
+            return JSONResponse({"detail": "internal service error"}, status_code=500)
+        finally:
+            route = request.scope.get("route")
+            path = getattr(route, "path", "unmatched")
+            span.update_name(f"{request.method} {path}")
+            span.set_attribute("http.route", path)
+            span.set_attribute("http.response.status_code", status)
+            if status >= 500:
+                span.set_status(trace.StatusCode.ERROR)
+            REQUESTS.labels(request.method, path, str(status)).inc(exemplar=exemplar())
+            LATENCY.labels(request.method, path).observe(time.perf_counter() - started, exemplar=exemplar())
+            LOG.info("request", method=request.method, path=path, status=status)
+
 
 
 def repository() -> TrafficRepository:
     return TrafficRepository(get_settings().postgres_dsn)
 
 
+from cognitive_traffic.api.monitoring import monitoring_router  # noqa: E402
+
+app.include_router(monitoring_router(repository))
+
 def query(callable_):
     try:
         return callable_()
     except Exception as exc:
-        LOG.warning("dependency_unavailable", dependency="postgres", error=str(exc))
+        LOG.warning("dependency_unavailable", dependency="postgres", error_type=type(exc).__name__)
         raise HTTPException(status_code=503, detail="operational store is unavailable") from exc
 
 
@@ -110,12 +140,13 @@ def data_quality(repo: TrafficRepository = Depends(repository)):
 
 
 @app.get("/system/health")
-def health(repo: TrafficRepository = Depends(repository)):
+def health(response: Response, repo: TrafficRepository = Depends(repository)):
     try:
         postgres = repo.ping()
     except Exception as exc:
-        LOG.warning("health_check_failed", dependency="postgres", error=str(exc))
+        LOG.warning("health_check_failed", dependency="postgres", error_type=type(exc).__name__)
         postgres = False
+    response.status_code = 200 if postgres else 503
     return {
         "status": "healthy" if postgres else "degraded",
         "service": "traffic-api",
@@ -126,4 +157,4 @@ def health(repo: TrafficRepository = Depends(repository)):
 
 @app.get("/metrics", include_in_schema=False)
 def metrics() -> Response:
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    return Response(generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)

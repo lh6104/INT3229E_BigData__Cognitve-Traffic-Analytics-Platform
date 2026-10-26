@@ -1,0 +1,21 @@
+# Public task tracker source
+
+Date: 2026-10-26. This versioned Markdown tracker is intended for public assessment with the repository. Local preparation does not certify publication: the integration branch must be published by an authorized maintainer before its new contents are publicly visible. No external issues were created in this task. [Public repository](https://github.com/lh6104/INT3229E_BigData__Cognitve-Traffic-Analytics-Platform), [issue list](https://github.com/lh6104/INT3229E_BigData__Cognitve-Traffic-Analytics-Platform/issues), [feature template](../../.github/ISSUE_TEMPLATE/feature.yml).
+
+Status vocabulary: **implemented** means source exists; **verified** requires an execution record; **planned** means no delivery claim; **external gate** requires outside participation/data/hosting. The validation ledger, not a checked box, determines verified status.
+
+| Task | Requirements | Owner | Delivery / acceptance | Evidence / status |
+|---|---|---|---|---|
+| T01 English spec and team context | F01–F10, D01–D10, B01–B06, N01–N05 | Documentation | English AC, modular instructions, honest tracker and review gates | [Requirements](../requirements/cognitive-traffic-mvp-v1.md), [team](../agents/team.md), [agent work](agent-execution.md), [documentation checks](documentation-validation.md); implemented locally, publication external |
+| T02 One-command local application | F01–F02, D06–D07 | Integration / serving | Registry anchors; Kafka→PostgreSQL→API/UI; clean bootstrap; persistence and replay isolation | [Readiness plan](../superpowers/plans/2026-10-26-rubric-readiness.md), [validation ledger](../evidence/rubric-validation.md); verification recorded there; [serving review/corrections](../reviews/serving-review-2026-10-27.md) records 13 real PostgreSQL regression cases |
+| T03 Operational evidence | D09, F09–F10 | Operations | Viewable trace/log/metric correlation, secret redaction and semantic journey probe | [Validation ledger](../evidence/rubric-validation.md); verification recorded there |
+| T04 Alert-driven bounded on-call | D06/D09, F09–F10 | Operations / integration | Delivered firing→diagnosis→allowlisted recovery→resolved, persistent incident record; duplicate/retry safeguards | [Validation ledger](../evidence/rubric-validation.md); verification recorded there |
+| T05 Notebook model lifecycle | F05, B02, N01–N05 | Documentation / model owner | Current imports; notebook audit/train/evaluate/export; artifact-only DAG with fail-closed review gates | [Notebook](../../notebooks/exploration.ipynb), [DAG](../../orchestration/dags/train_forecast.py); syntax validation is not training evidence |
+| T06 Provider coverage and source rights | D01–D04/D10, B02–B04 | Human / data owner | 12-point mapping/rights register; lawful acquired data; real coverage and paired-context evaluation | Planned / external data gate; config is not proof |
+| T07 Product alerts and review | F03–F04/F06/F09 | Product/data owner | Low-speed hysteresis, evidence, operator review separate from lifecycle, matched context and labels | Planned; operational outage alert is a different requirement |
+| T08 Departure / route templates | F07–F08, B06 | Product/data owner | Same-issue-time comparison, two valid templates or explicit blocker; ETA gates | Planned / valid geometry and evaluation gate |
+| T09 CV and optional flow benchmark | B03–B05, N01–N05 | Model/data owner | Lawful video/flow inputs, notebook reports with true measurement semantics | Planned / conditional data gate |
+| T10 Three human peer reviews | Course assessment | Human maintainer | Three actual reviewer identities/dates/links/findings/responses | [Review register](../reviews/peer-reviews.md); external gate, 0 evidenced |
+| T11 Public hosting and delivery | Deployment/CI deployment criteria | Human maintainer | Persistent reachable hosted app; tested dev deployment and approved prod deployment | Deferred by user; no local or CI-container substitute |
+
+For every task add the actual public issue/PR/change link and command evidence after publication/execution. Never relabel all product phases complete because local infrastructure passed. See [roadmap](../superpowers/plans/2026-10-26-cognitive-traffic-mvp-roadmap.md) for phase acceptance.

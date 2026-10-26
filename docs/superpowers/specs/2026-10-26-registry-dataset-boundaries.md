@@ -1,67 +1,64 @@
-# P1 — registry và ranh giới dataset
+# P1 — registry and dataset boundaries
 
-- Ngày: 2026-10-26. Scope: subsystem đầu của [roadmap MVP](../plans/2026-10-26-cognitive-traffic-mvp-roadmap.md).
-- Parent authority: [yêu cầu MVP v1.1](../../requirements/cognitive-traffic-mvp-v1.md), D02/B01/B06 và phần nền D03/D08.
-- Mục tiêu: mô tả chính xác 12 điểm, định danh các dataset theo measurement/mode và cung cấp policy rõ ràng cho live serving trước khi triển khai sink ở P2.
-- Không coi validation config hoặc report offline là evidence provider coverage/live integration.
+Date: 2026-10-26. Scope: first subsystem of the [MVP roadmap](../plans/2026-10-26-cognitive-traffic-mvp-roadmap.md). Parent authority: [MVP requirements](../../requirements/cognitive-traffic-mvp-v1.md), D02/B01/B06 and foundations D03/D08. Describe the exact 12 points, dataset measurement/mode identities and explicit live-serving policy before P2 sink implementation. Config validation/offline reporting is not provider-coverage/live-integration evidence.
 
-## S01. Registry điểm cố định
+## S01. Fixed point registry
 
-Đọc `configs/sources.yaml`, giữ nguyên ID/tọa độ và 6 điểm mỗi thành phố. Contract `MonitoringPoint` dùng `point_id` nhưng nhận alias đầu vào `segment_id` của config hiện tại. Point identity không tự xác nhận provider segment hoặc physical road direction.
+Read `configs/sources.yaml`; preserve IDs/coordinates and six points per city. `MonitoringPoint` uses `point_id`, accepting the existing input alias `segment_id`. Point identity does not verify provider segment or physical road direction.
 
-`load_monitoring_points(path)` trả tuple 12 điểm, từ chối duplicate, thiếu/thừa ID, thành phố sai, lat/lon ngoài range hoặc field point không hỗ trợ. Validate cấu hình RSS ở nguồn khác; phần `sources` không phải point record.
+`load_monitoring_points(path)` returns a tuple of 12 points. Reject duplicate/missing/extra IDs, wrong city, out-of-range latitude/longitude and unsupported point fields. RSS source configuration is validated separately; the `sources` section is not a point record.
 
-Coordinates được bảo toàn khi parse. Khi lập report, provider/network mapping có trạng thái `unverified`; không tạo tên đường, direction hay synthetic geometry để lấp chỗ trống. Weather cell lấy đúng cấu hình hiện có; nhiều điểm có thể cùng cell.
+Preserve parsed coordinates. Report provider/network mapping as `unverified`; do not invent street names, direction or geometry. Use configured weather cells; multiple points may share one cell.
 
 ## S02. Dataset profiles
 
-Thêm `configs/datasets.yaml` với schema version `1`, bốn profile:
+`configs/datasets.yaml`, schema version `1`, declares four profiles:
 
-| dataset_id | purpose | measurement | unit khai báo ban đầu | acquisition status |
+| dataset_id | purpose | measurement | initial unit | acquisition status |
 |---|---|---|---|---|
 | `vn-mvp-12` | operational | speed | km/h | configured_unverified |
 | `metr-la` | benchmark | speed | mph | not_acquired |
 | `ua-detrac` | benchmark | video | frame | not_acquired |
 | `largest` | benchmark | flow | source_units_unverified | not_acquired |
 
-Profile chứa source URI/reference, profile version `1` và các trường ở bảng. Acquisition status mô tả artifact được xác minh trong project, không suy từ tên dataset có trong file cấu hình. Quyền/availability được ghi `unverified` lúc chưa xác minh theo dataset cụ thể.
+Each profile includes source URI/reference, profile version `1` and the table fields. Acquisition status reflects verified project artifacts, not a configured dataset name. Rights/availability remain `unverified` pending dataset-specific checks.
 
-`load_dataset_profiles(path)` trả mapping theo ID, từ chối trùng ID, enum sai và tổ hợp measurement/unit không hợp lệ. LargeST chưa cho import flow trước khi xác minh unit/aggregation; profile chưa xác minh vẫn đọc được để mô tả research readiness.
+`load_dataset_profiles(path)` returns an ID-keyed mapping; reject duplicate IDs, invalid enums and invalid measurement/unit combinations. Do not import LargeST flow before verifying units/aggregation. The unverified profile remains readable to report research readiness.
 
-## S03. Policy cho dữ liệu được phép phục vụ live
+## S03. Live-serving eligibility
 
-`may_serve_current(profile, *, mode, point_id, points)` chỉ trả True khi `profile.dataset_id == 'vn-mvp-12'`, purpose operational, measurement speed, unit km/h, mode live và point thuộc registry. Các mode chỉ gồm live, replay, reprocess; mode không hợp lệ bị từ chối bằng ValueError.
+`may_serve_current(profile, *, mode, point_id, points)` returns True only for dataset `vn-mvp-12`, purpose operational, measurement speed, unit km/h, mode live, and a registered point. Valid modes are live/replay/reprocess; invalid modes raise ValueError.
 
-Replay/reprocess không trực tiếp cập nhật live current state trong policy này. Benchmark mode live vẫn không đủ điều kiện. P1 xuất policy và chứng minh bằng kiểm tra hành vi; việc gọi policy trong worker/sink và storage namespace được triển khai ở P2, chưa được báo là đã enforce end-to-end.
+Replay/reprocess cannot directly update live current state. Benchmark/live remains ineligible. P1 exports and behaviorally tests policy; worker/sink invocation and namespace enforcement belong to P2. Do not claim P1 proves end-to-end isolation.
 
-Không thêm các field vào Kafka envelope, event schema hoặc DB ngay trong P1; việc di trú hợp đồng có version và propagation thực hiện tại phase sở hữu producer/sink. Tránh làm vỡ schema hiện có bằng thay đổi nửa chừng.
+P1 adds no Kafka-envelope/event/DB fields. The producer/sink phase owns versioned propagation/migrations; avoid partial contract changes that break consumers.
 
-## S04. Report offline có thể tái tạo
+## S04. Reproducible offline report
 
-CLI `python -m cognitive_traffic.monitoring.registry_report` đọc registry và profiles, xuất JSON ra stdout. Các tùy chọn: `--sources`, `--datasets`; mặc định là hai config ở trên. Config lỗi: exit 2, stderr có lỗi validation, stdout không có report hợp lệ.
+`python -m cognitive_traffic.monitoring.registry_report` reads registry/profiles and prints JSON. Options: `--sources`, `--datasets`, defaulting to the configurations above. Invalid config exits 2, reports validation on stderr, and emits no valid report on stdout.
 
-Report gồm schema_version, sources_sha256, datasets_sha256, configured_points=12, points_by_city, danh sách điểm với mapping_status=unverified, dataset profiles và live-serving eligibility theo policy. Không chứa API key/credential, thời điểm/coverage giả hoặc phát biểu dữ liệu đã được tải. Với cùng input bytes, JSON cùng nội dung và thứ tự ổn định; không thêm timestamp hiện tại phá tính xác định.
+Report: schema_version, sources_sha256, datasets_sha256, configured_points=12, points_by_city, point list with mapping_status=unverified, dataset profiles and policy-based live eligibility. Never expose API keys/credentials, fabricated observation/coverage timestamps, or claims of downloaded data. Identical input bytes yield stable content/order; no current-time field may break determinism.
 
-Khi vận hành sau này, acquisition/mapping verification được ghi trong evidence riêng có reference; CLI P1 chỉ báo trạng thái khai báo, chưa tự truy vấn provider. Lệnh xuất file dùng `.local/` theo quy ước repo.
+Later acquisition/mapping verification belongs in separately referenced evidence. P1 reports declarations and does not query providers. Save optional report files under `.local/`.
 
-## S05. Nghiệm thu riêng P1
+## S05. P1 acceptance
 
-- Đủ 12 ID và đúng tọa độ/city so với config gốc; không phát sinh thêm monitoring point.
-- Duplicate/missing/extra ID, sai tọa độ/city và profile sai bị phát hiện.
-- Unknown mapping và chưa tải dataset được hiển thị đúng.
-- Benchmark, replay, reprocess và unknown point không đạt policy phục vụ current.
-- CLI có exit behavior và digest ổn định; report không có dữ liệu nguồn hoặc quyền sử dụng được tự suy đoán.
-- Các consumer hiện có vẫn sử dụng `configs/sources.yaml` bình thường; production contracts chưa bị thay đổi.
+- Exactly 12 original IDs/coordinates/cities; no added points.
+- Detect duplicate/missing/extra ID, invalid coordinate/city/profile.
+- Correctly show unknown mapping and unacquired datasets.
+- Benchmark/replay/reprocess/unknown-point cases fail current-serving policy.
+- Stable CLI digests/exit behavior; infer no source-data acquisition or rights.
+- Existing `configs/sources.yaml` consumers continue working; P1 changes no production event contracts.
 
-## Trách nhiệm file
+## File responsibility
 
-| File | Trách nhiệm |
+| Path | Responsibility |
 |---|---|
-| `contracts/registry.py` | `MonitoringPoint`, enum, `DatasetProfile`, validation shape và measurement/unit |
-| `monitoring/registry.py` | Load config, kiểm tra scope 12 điểm, `may_serve_current` |
-| `monitoring/registry_report.py` | Report và CLI, không gọi source ngoài |
-| `configs/datasets.yaml` | Dataset identities, purpose, measurement, trạng thái khai báo |
-| `tests/unit/test_registry.py` | Scope invariant, profile validation và serving policy |
-| `tests/unit/test_registry_report.py` | CLI/report determinism, lỗi config và evidence labels |
+| `contracts/registry.py` | MonitoringPoint, enums, DatasetProfile, shape and measurement/unit validation |
+| `monitoring/registry.py` | Config loading, 12-point invariant, may_serve_current |
+| `monitoring/registry_report.py` | Report/CLI without external-source calls |
+| `configs/datasets.yaml` | Dataset identity/purpose/measurement/declaration status |
+| `tests/unit/test_registry.py` | Scope/profile/serving-policy behavior |
+| `tests/unit/test_registry_report.py` | CLI determinism/config errors/evidence labels |
 
-Các path Python trong bảng là tương đối với `src/cognitive_traffic/`; test/config paths tính từ root repo.
+Python paths are relative to `src/cognitive_traffic`; config/test paths are relative to repository root. Historical complete edition is available at Git revision `43ac84e62ec06a0a92429d1db5d87ca056f6b804`; this is the canonical English edition.

@@ -9,6 +9,7 @@ import requests
 import structlog
 
 from cognitive_traffic.ingestion.traffic import load_points
+from cognitive_traffic.monitoring.logging import configure_logging
 from cognitive_traffic.settings import get_settings
 from cognitive_traffic.streaming.producers import ContractProducer
 from cognitive_traffic.streaming.topics import WEATHER_RAW
@@ -63,13 +64,14 @@ def run_once(session: requests.Session, producer: ContractProducer, cells: list[
             producer.send(WEATHER_RAW, source_event(cell, response.json(), datetime.now(UTC)))
             sent += 1
         except Exception as exc:
-            LOG.warning("source_fetch_failed", weather_cell_id=cell["weather_cell_id"], error=str(exc))
+            LOG.warning("source_fetch_failed", weather_cell_id=cell["weather_cell_id"], error_type=type(exc).__name__)
     producer.flush()
     LOG.info("poll_complete", source="openweather", sent=sent, requested=len(cells))
     return sent
 
 
 def run() -> None:
+    configure_logging()
     api_key = os.environ.get("OPENWEATHER_API_KEY")
     if not api_key:
         raise RuntimeError("OPENWEATHER_API_KEY is required")

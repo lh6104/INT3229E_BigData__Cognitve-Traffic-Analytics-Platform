@@ -1,167 +1,224 @@
-name: cognitive-traffic
-
-x-s3-environment: &s3-environment
+# Local development stack; provider ingestion and training remain opt-in.
+name: ${COMPOSE_PROJECT_NAME:-cognitive-traffic}
+x-s3-environment:
   AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
   AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
   MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-
-x-flink-environment: &flink-environment
+x-flink-environment:
   AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
   AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
-  FLINK_PROPERTIES: |
-    jobmanager.rpc.address: flink-jobmanager
+  FLINK_PROPERTIES: 'jobmanager.rpc.address: flink-jobmanager
+
     rest.address: flink-jobmanager
+
     rest.bind-address: 0.0.0.0
+
     taskmanager.numberOfTaskSlots: 6
+
     parallelism.default: 6
+
     state.checkpoints.dir: s3://cognitive-traffic/checkpoints/flink
+
     s3.endpoint: http://minio:9000
+
     s3.path.style.access: true
+
     s3.connection.ssl.enabled: false
+
     s3.access-key: ${S3_ACCESS_KEY:-minioadmin}
+
     s3.secret-key: ${S3_SECRET_KEY:-minioadmin}
 
+    '
 services:
   kafka:
     image: confluentinc/cp-kafka:7.7.1
-    ports: ["9092:9092"]
+    ports:
+    - 127.0.0.1:${KAFKA_PORT:-9092}:9092
     environment:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:${KAFKA_PORT:-9092}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
     healthcheck:
-      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      test:
+      - CMD
+      - kafka-topics
+      - --bootstrap-server
+      - localhost:29092
+      - --list
       interval: 10s
       timeout: 10s
       retries: 12
-
+    volumes:
+    - kafka_data:/var/lib/kafka/data
+    restart: unless-stopped
   kafka-init:
     image: confluentinc/cp-kafka:7.7.1
     depends_on:
-      kafka: {condition: service_healthy}
+      kafka:
+        condition: service_healthy
     volumes:
-      - ./infra/kafka/create-topics.sh:/create-topics.sh:ro
-    command: ["bash", "/create-topics.sh", "kafka:29092"]
-    restart: "no"
-
+    - ./infra/kafka/create-topics.sh:/create-topics.sh:ro
+    command:
+    - bash
+    - /create-topics.sh
+    - kafka:29092
+    restart: 'no'
   minio:
-    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
-    ports: ["9000:9000", "9001:9001"]
+    ports:
+    - 127.0.0.1:${S3_PORT:-19000}:9000
+    - 127.0.0.1:${S3_CONSOLE_PORT:-19001}:9001
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
     command: server /data --console-address :9001
-    volumes: ["minio_data:/data"]
+    volumes:
+    - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:9000/minio/health/live
       interval: 10s
       timeout: 5s
       retries: 12
-
+    build:
+      context: .
+      dockerfile: infra/docker/minio.Dockerfile
+    restart: unless-stopped
   minio-init:
-    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
     depends_on:
-      minio: {condition: service_healthy}
+      minio:
+        condition: service_healthy
     environment:
+      OBJECT_STORE_URI: s3://cognitive-traffic
+      S3_ENDPOINT_URL: http://minio:9000
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
-    entrypoint: ["/bin/sh", "-c"]
     command:
-      - mc alias set local http://minio:9000 "$${S3_ACCESS_KEY}" "$${S3_SECRET_KEY}" && mc mb --ignore-existing local/cognitive-traffic
-    restart: "no"
-
+    - python
+    - -c
+    - from cognitive_traffic.settings import get_settings; from cognitive_traffic.storage.object_store
+      import S3ObjectStore; s=get_settings(); S3ObjectStore(s.object_store_uri,endpoint_url=s.s3_endpoint_url,access_key=s.s3_access_key,secret_key=s.s3_secret_key).ensure_bucket()
+    restart: 'no'
+    build:
+      context: .
+      dockerfile: infra/docker/streaming.Dockerfile
   postgres:
     image: postgres:16-alpine
-    ports: ["5432:5432"]
+    ports:
+    - 127.0.0.1:${POSTGRES_PORT:-15433}:5432
     environment:
       POSTGRES_DB: traffic_analytics
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/00-databases.sql:ro
-      - ./infra/postgres/schema.sql:/docker-entrypoint-initdb.d/10-traffic-schema.sql:ro
+    - postgres_data:/var/lib/postgresql/data
+    - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/00-databases.sql:ro
+    - ./infra/postgres/schema.sql:/docker-entrypoint-initdb.d/10-traffic-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d traffic_analytics"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U $${POSTGRES_USER} -d traffic_analytics
       interval: 10s
       timeout: 5s
       retries: 12
-
+    restart: unless-stopped
   redis:
     image: redis:7.4-alpine
-    ports: ["6380:6379"]
+    ports:
+    - 127.0.0.1:${REDIS_PORT:-6380}:6379
     command: redis-server --appendonly yes
-    volumes: ["redis_data:/data"]
+    volumes:
+    - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 10s
       timeout: 5s
       retries: 12
-
+    restart: unless-stopped
   mlflow:
     build:
       context: .
       dockerfile: infra/docker/mlflow.Dockerfile
-    ports: ["5000:5000"]
+    ports:
+    - 127.0.0.1:${MLFLOW_PORT:-5000}:5000
     depends_on:
-      postgres: {condition: service_healthy}
-      minio-init: {condition: service_completed_successfully}
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     environment:
-      <<: *s3-environment
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
     command:
-      - mlflow
-      - server
-      - --backend-store-uri
-      - postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/mlflow
-      - --artifacts-destination
-      - s3://cognitive-traffic/artifacts/mlflow
-      - --serve-artifacts
-      - --host
-      - 0.0.0.0
-      - --port
-      - "5000"
-
+    - mlflow
+    - server
+    - --backend-store-uri
+    - postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/mlflow
+    - --artifacts-destination
+    - s3://cognitive-traffic/artifacts/mlflow
+    - --serve-artifacts
+    - --host
+    - 0.0.0.0
+    - --port
+    - '5000'
+    profiles:
+    - ml
+    restart: unless-stopped
   raw-archive:
     build:
       context: .
       dockerfile: infra/docker/streaming.Dockerfile
     command: python -m cognitive_traffic.streaming.processors archive
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
-      minio-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      METRICS_PORT: "9102"
+      METRICS_PORT: '9102'
       OBJECT_STORE_URI: s3://cognitive-traffic
       S3_ENDPOINT_URL: http://minio:9000
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
-    expose: ["9102"]
-
+    expose:
+    - '9102'
+    restart: unless-stopped
   normalizer:
     build:
       context: .
       dockerfile: infra/docker/streaming.Dockerfile
     command: python -m cognitive_traffic.streaming.processors normalize
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      METRICS_PORT: "9101"
-    expose: ["9101"]
-
+      METRICS_PORT: '9101'
+    expose:
+    - '9101'
+    restart: unless-stopped
   traffic-ingestor:
-    profiles: ["ingestion"]
+    profiles:
+    - ingestion
     build:
       context: .
       dockerfile: infra/docker/streaming.Dockerfile
@@ -169,14 +226,16 @@ services:
         PROJECT_EXTRAS: ingestion
     command: python -m cognitive_traffic.ingestion.traffic
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       TOMTOM_API_KEY: ${TOMTOM_API_KEY:-}
       TOMTOM_POLL_INTERVAL_SECONDS: ${TOMTOM_POLL_INTERVAL_SECONDS:-300}
-
+    restart: unless-stopped
   weather-ingestor:
-    profiles: ["ingestion"]
+    profiles:
+    - ingestion
     build:
       context: .
       dockerfile: infra/docker/streaming.Dockerfile
@@ -184,14 +243,16 @@ services:
         PROJECT_EXTRAS: ingestion
     command: python -m cognitive_traffic.ingestion.weather
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
       WEATHER_POLL_INTERVAL_SECONDS: ${WEATHER_POLL_INTERVAL_SECONDS:-900}
-
+    restart: unless-stopped
   news-ingestor:
-    profiles: ["ingestion"]
+    profiles:
+    - ingestion
     build:
       context: .
       dockerfile: infra/docker/streaming.Dockerfile
@@ -199,13 +260,15 @@ services:
         PROJECT_EXTRAS: ingestion
     command: python -m cognitive_traffic.ingestion.news
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       NEWS_POLL_INTERVAL_SECONDS: ${NEWS_POLL_INTERVAL_SECONDS:-600}
-
+    restart: unless-stopped
   forecast-service:
-    profiles: ["inference"]
+    profiles:
+    - inference
     build:
       context: .
       dockerfile: infra/docker/streaming.Dockerfile
@@ -213,8 +276,10 @@ services:
         PROJECT_EXTRAS: streaming,ml
     command: python -m cognitive_traffic.forecasting.inference
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
-      minio-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       OBJECT_STORE_URI: s3://cognitive-traffic
@@ -223,125 +288,336 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
       MODEL_ARTIFACT_KEY: ${MODEL_ARTIFACT_KEY:-}
       MODEL_VERSION: ${MODEL_VERSION:-}
-
+    restart: unless-stopped
   api:
     build:
       context: .
       dockerfile: infra/docker/api.Dockerfile
-    ports: ["8000:8000"]
+    ports:
+    - 127.0.0.1:${API_PORT:-18000}:8000
     depends_on:
-      postgres: {condition: service_healthy}
+      db-init:
+        condition: service_completed_successfully
     environment:
-      POSTGRES_DSN: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/traffic_analytics
+      POSTGRES_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/traffic_analytics
       REDIS_URL: redis://redis:6379/0
       MLFLOW_TRACKING_URI: http://mlflow:5000
       OBJECT_STORE_URI: s3://cognitive-traffic
       S3_ENDPOINT_URL: http://minio:9000
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
-
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://telemetry:4318
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8000/system/health',timeout=3)
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
   flink-jobmanager:
-    profiles: ["streaming"]
+    profiles:
+    - streaming
     build:
       context: .
       dockerfile: infra/docker/flink.Dockerfile
     command: jobmanager
-    ports: ["8081:8081"]
+    ports:
+    - 8081:8081
     depends_on:
-      kafka-init: {condition: service_completed_successfully}
-      minio-init: {condition: service_completed_successfully}
+      kafka-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
     environment:
-      <<: *flink-environment
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      FLINK_PROPERTIES: 'jobmanager.rpc.address: flink-jobmanager
+
+        rest.address: flink-jobmanager
+
+        rest.bind-address: 0.0.0.0
+
+        taskmanager.numberOfTaskSlots: 6
+
+        parallelism.default: 6
+
+        state.checkpoints.dir: s3://cognitive-traffic/checkpoints/flink
+
+        s3.endpoint: http://minio:9000
+
+        s3.path.style.access: true
+
+        s3.connection.ssl.enabled: false
+
+        s3.access-key: ${S3_ACCESS_KEY:-minioadmin}
+
+        s3.secret-key: ${S3_SECRET_KEY:-minioadmin}
+
+        '
     volumes:
-      - ./tests/streaming/flink_smoke.sql:/opt/flink/smoke/flink_smoke.sql:ro
+    - ./tests/streaming/flink_smoke.sql:/opt/flink/smoke/flink_smoke.sql:ro
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8081/overview"]
+      test:
+      - CMD
+      - curl
+      - --fail
+      - --silent
+      - http://localhost:8081/overview
       interval: 5s
       timeout: 5s
       retries: 24
     restart: unless-stopped
-
   flink-taskmanager:
-    profiles: ["streaming"]
+    profiles:
+    - streaming
     build:
       context: .
       dockerfile: infra/docker/flink.Dockerfile
     command: taskmanager
     depends_on:
-      flink-jobmanager: {condition: service_healthy}
+      flink-jobmanager:
+        condition: service_healthy
     environment:
-      <<: *flink-environment
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      FLINK_PROPERTIES: 'jobmanager.rpc.address: flink-jobmanager
+
+        rest.address: flink-jobmanager
+
+        rest.bind-address: 0.0.0.0
+
+        taskmanager.numberOfTaskSlots: 6
+
+        parallelism.default: 6
+
+        state.checkpoints.dir: s3://cognitive-traffic/checkpoints/flink
+
+        s3.endpoint: http://minio:9000
+
+        s3.path.style.access: true
+
+        s3.connection.ssl.enabled: false
+
+        s3.access-key: ${S3_ACCESS_KEY:-minioadmin}
+
+        s3.secret-key: ${S3_SECRET_KEY:-minioadmin}
+
+        '
     healthcheck:
       test:
-        - CMD-SHELL
-        - curl --fail --silent http://flink-jobmanager:8081/taskmanagers | grep --quiet '"taskmanagers":\[{'
+      - CMD-SHELL
+      - curl --fail --silent http://flink-jobmanager:8081/taskmanagers | grep --quiet
+        '"taskmanagers":\[{'
       interval: 5s
       timeout: 5s
       retries: 24
     restart: unless-stopped
-
   airflow:
     build:
       context: .
       dockerfile: infra/docker/airflow.Dockerfile
-    profiles: ["orchestration"]
-    ports: ["8088:8080"]
+    profiles:
+    - orchestration
+    ports:
+    - 8088:8080
     depends_on:
-      postgres: {condition: service_healthy}
+      postgres:
+        condition: service_healthy
     environment:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/airflow
     volumes:
-      - ./orchestration/dags:/opt/airflow/dags:ro
-      - airflow_logs:/opt/airflow/logs
+    - ./orchestration/dags:/opt/airflow/dags:ro
+    - airflow_logs:/opt/airflow/logs
     command: standalone
     healthcheck:
       test:
-        - CMD-SHELL
-        - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/health', timeout=5)"
+      - CMD-SHELL
+      - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/health',
+        timeout=5)"
       interval: 10s
       timeout: 10s
       retries: 30
       start_period: 30s
     restart: unless-stopped
-
   prometheus:
     image: prom/prometheus:v3.13.1
-    profiles: ["monitoring"]
-    ports: ["9090:9090"]
+    ports:
+    - 127.0.0.1:${PROMETHEUS_PORT:-19090}:9090
     depends_on:
-      api: {condition: service_started}
-      normalizer: {condition: service_started}
-      raw-archive: {condition: service_started}
+      api:
+        condition: service_started
+      normalizer:
+        condition: service_started
+      raw-archive:
+        condition: service_started
     volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
+    - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - prometheus_data:/prometheus
+    - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=7d
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --storage.tsdb.path=/prometheus
+    - --storage.tsdb.retention.time=7d
+    - --enable-feature=exemplar-storage
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:9090/-/healthy"]
+      test:
+      - CMD
+      - wget
+      - --spider
+      - --quiet
+      - http://localhost:9090/-/healthy
       interval: 5s
       timeout: 5s
       retries: 20
     restart: unless-stopped
-
   frontend:
-    image: node:22-alpine
-    profiles: ["dashboard"]
-    working_dir: /app/frontend
-    ports: ["5173:5173"]
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+    ports:
+    - 127.0.0.1:${FRONTEND_PORT:-5173}:5173
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
-    volumes: [".:/app"]
-    command: sh -c "npm install --legacy-peer-deps && npm run dev -- --host 0.0.0.0"
-
+      API_UPSTREAM: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://localhost:5173/api/system/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  db-init:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command:
+    - python
+    - -m
+    - cognitive_traffic.storage.bootstrap
+    environment:
+      POSTGRES_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/traffic_analytics
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+  serving:
+    build:
+      context: .
+      dockerfile: infra/docker/streaming.Dockerfile
+    command:
+    - python
+    - -m
+    - cognitive_traffic.streaming.serving
+    environment:
+      POSTGRES_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/traffic_analytics
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  telemetry:
+    image: grafana/otel-lgtm:0.20.0
+    ports:
+    - 127.0.0.1:${GRAFANA_PORT:-13000}:3000
+    volumes:
+    - telemetry_data:/data
+    - ./infra/observability/datasources.yml:/otel-lgtm/grafana/conf/provisioning/datasources/traffic.yml:ro
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    restart: unless-stopped
+  journey-probe:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command:
+    - python
+    - -m
+    - cognitive_traffic.monitoring.journey_probe
+    environment:
+      API_BASE_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_started
+    expose:
+    - '9101'
+    restart: unless-stopped
+  oncall-init:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    command:
+    - python
+    - -m
+    - cognitive_traffic.operations.init
+    environment:
+      ONCALL_HOST_UID: ${ONCALL_HOST_UID:-1000}
+      ONCALL_HOST_GID: ${ONCALL_HOST_GID:-1000}
+    volumes:
+    - ${ONCALL_STATE_DIR:-./.local/oncall}:/state
+    restart: 'no'
+  oncall:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    user: ${ONCALL_HOST_UID:-1000}:${ONCALL_HOST_GID:-1000}
+    command:
+    - uvicorn
+    - cognitive_traffic.operations.alert_receiver:app
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8095'
+    environment:
+      ONCALL_TOKEN_FILE: /state/token
+      INCIDENT_DB: /state/incidents.sqlite
+      RECOVERY_QUEUE: /state/queue
+      API_BASE_URL: http://api:8000
+    volumes:
+    - ${ONCALL_STATE_DIR:-./.local/oncall}:/state
+    ports:
+    - 127.0.0.1:${ONCALL_PORT:-19095}:8095
+    depends_on:
+      oncall-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    user: 0:0
+    command:
+    - --config.file=/etc/alertmanager/alertmanager.yml
+    - --storage.path=/alertmanager
+    volumes:
+    - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    - alertmanager_data:/alertmanager
+    - ${ONCALL_STATE_DIR:-./.local/oncall}:/state:ro
+    ports:
+    - 127.0.0.1:${ALERTMANAGER_PORT:-19093}:9093
+    depends_on:
+      oncall-init:
+        condition: service_completed_successfully
+      oncall:
+        condition: service_started
+    restart: unless-stopped
 volumes:
-  airflow_logs:
-  postgres_data:
-  prometheus_data:
-  redis_data:
-  minio_data:
+  airflow_logs: null
+  postgres_data: null
+  prometheus_data: null
+  redis_data: null
+  minio_data: null
+  kafka_data: null
+  telemetry_data: null
+  alertmanager_data: null

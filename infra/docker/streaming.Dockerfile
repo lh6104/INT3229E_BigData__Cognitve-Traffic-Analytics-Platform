@@ -7,6 +7,7 @@ ARG PROJECT_EXTRAS=streaming
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY configs ./configs
-RUN pip install --no-cache-dir ".[${PROJECT_EXTRAS}]"
+COPY constraints ./constraints
+RUN pip install --no-cache-dir -c constraints/python311.txt ".[${PROJECT_EXTRAS}]" && pip check
 
 CMD ["python", "-m", "cognitive_traffic.streaming.processors", "normalize"]

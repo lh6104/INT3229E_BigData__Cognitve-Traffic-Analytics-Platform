@@ -1,217 +1,181 @@
-# Cognitive Traffic — yêu cầu MVP v1
+# Cognitive Traffic — MVP requirements v1
 
-- Ngày: 2026-10-26. Phiên bản: 1.2 — bổ sung yêu cầu thực hiện huấn luyện model trong notebooks.
-- Căn cứ: người dùng chọn hướng giám sát có bằng chứng, có thêm hỗ trợ chọn thời điểm/tuyến; xác nhận giới hạn 12 điểm ở MVP và mở rộng sau.
-- Mục đích: chốt yêu cầu sản phẩm, dữ liệu, phạm vi và nghiệm thu để lập kế hoạch triển khai. Đây là yêu cầu mục tiêu, chưa phải báo cáo phần đã hoàn thành.
-- Tài liệu nền: [nghiên cứu và nguồn tham khảo](../research/cognitive-traffic-direction-v1.md), [kiến trúc hiện tại](../architecture.md), [cấu hình điểm](../../configs/sources.yaml).
-- Phạm vi đã chốt từ người dùng: 12 điểm; người giám sát là chính; hỗ trợ di chuyển là phụ; trọng tâm Data Engineering; tránh thêm công nghệ thiếu mục đích.
-- Các chính sách số ở mục 4 là mặc định thiết kế đề xuất để triển khai thử và đánh giá; chưa phải các ngưỡng có hiệu quả được chứng minh ngoài thực địa.
+Date: 2026-10-26. Version: **1.3**, canonical English edition of v1.2. This specification records approved target behavior; it is not a completion report. The user selected evidence-based operator monitoring, secondary departure/route support, exactly 12 points before future expansion, and a Data Engineering focus. Numeric policies below are initial configurable design defaults for evaluation, not field-proven thresholds.
 
-## 1. Mục tiêu và định nghĩa hoàn thành
+Read the [research direction](../research/cognitive-traffic-direction-v1.md), [reference review](../research/reference-repositories-review-v1.md), [architecture](../architecture.md), [point configuration](../../configs/sources.yaml), [task tracker](../tasks/tracker.md) and [verification ledger](../evidence/rubric-validation.md). The complete historical Vietnamese edition remains in Git at revision `43ac84e62ec06a0a92429d1db5d87ca056f6b804`; this English edition is authoritative for assessment.
 
-Người giám sát nhìn được tình trạng 12 điểm, phân biệt ùn tắc với nguồn lỗi, kiểm tra bằng chứng cho cảnh báo, xem dự báo ngắn hạn và theo dõi kết quả. Người đi đường xem tình trạng trên template tuyến được hỗ trợ và so thời điểm đi bằng cùng dữ liệu.
+## 1. Objective and definition of done
 
-“Thông minh” trong MVP thể hiện qua bốn hành vi: phát hiện khác thường so baseline; dự báo trước thay vì chỉ hiển thị số đo; trình bày bằng chứng và giới hạn; ghi outcome để đánh giá lại quyết định.
+Operators must see the state of all 12 points, distinguish congestion from source failure, inspect alert evidence, view short-horizon forecasts and track outcomes. Travelers use the same data to inspect supported route templates and compare departure times.
 
-MVP đạt khi luồng dữ liệu từ nguồn đến dashboard được kiểm chứng, cảnh báo/dự báo có đánh giá ngoài mẫu với nhãn rõ ràng, và luồng tư vấn không vượt quá khả năng quan sát. Chất lượng model, chất lượng pipeline và chất lượng dữ liệu nguồn phải được báo riêng.
+“Cognitive” means four measurable behaviors: detect departures from a baseline; forecast rather than merely display measurements; show evidence and limitations; record outcomes to evaluate decisions. Completion requires a verified source-to-dashboard path, explicitly labelled out-of-sample alert/forecast evaluation, and advice bounded by actual observability. Report model quality, pipeline quality and source quality separately.
 
-## 2. Phạm vi cố định: đúng 12 điểm
+## 2. Fixed scope: exactly 12 points
 
-| Thành phố | ID điểm hiện tại |
+| City | Existing point IDs |
 |---|---|
-| Hà Nội | `HN_HK_001`, `HN_BD_001`, `HN_CG_001`, `HN_TX_001`, `HN_RR3_001`, `HN_VNG_001` |
-| TP.HCM | `HCMC_D1_001`, `HCMC_D3_001`, `HCMC_BT_001`, `HCMC_TD_001`, `HCMC_Q7_001`, `HCMC_CL_001` |
+| Hanoi | `HN_HK_001`, `HN_BD_001`, `HN_CG_001`, `HN_TX_001`, `HN_RR3_001`, `HN_VNG_001` |
+| Ho Chi Minh City | `HCMC_D1_001`, `HCMC_D3_001`, `HCMC_BT_001`, `HCMC_TD_001`, `HCMC_Q7_001`, `HCMC_CL_001` |
 
-Giữ ID và tọa độ theo config. Khảo sát coverage có thể kết luận một điểm unsupported hoặc chưa match được hướng đường; điểm đó vẫn hiện trong tổng số 12. Không tự thay điểm thất bại bằng điểm mới để làm đẹp coverage.
+Preserve configured IDs and coordinates. An unsupported or direction-unmatched point remains among the 12; do not replace failed points to improve apparent coverage. Separate monitoring-point identity, provider segment and directed physical road segment. Two anchors matching one provider segment are not independent measurements. Report reporting-points/12 and unique physical segments; point coverage does not describe citywide coverage.
 
-Tách ID điểm giám sát khỏi provider segment và directed road segment. Hai điểm cùng match một provider segment không trở thành hai phép đo độc lập. Báo cả số điểm có dữ liệu trên tổng 12 và số physical segment phân biệt; chỉ số tại điểm không mô tả coverage toàn thành phố.
+Weather/RSS are context sources. Match weather by configured weather cell and explicit fallback policy; do not silently substitute any record from the same city.
 
-Weather/RSS hiện có là nguồn bối cảnh. Weather phải match theo weather cell được cấu hình, với quy tắc fallback công khai, thay vì tự dùng bất kỳ bản ghi cùng thành phố.
+## 3. Mandatory functional requirements
 
-## 3. Yêu cầu chức năng bắt buộc
-
-| ID | Yêu cầu | Điều kiện nghiệm thu |
+| ID | Requirement | Acceptance criteria |
 |---|---|---|
-| F01 | Tổng quan 12 điểm, lọc theo thành phố, bản đồ và danh sách nhất quán | Luôn thấy đủ điểm, gồm điểm chưa có số đo; thời gian cập nhật và quality state hiển thị rõ |
-| F02 | Chi tiết điểm: số đo hiện tại, lịch sử, baseline, bối cảnh | Phân biệt observation với forecast; hiển thị source, đơn vị, thời điểm và thời gian thiếu dữ liệu |
-| F03 | Cảnh báo hiện tại và nghi vấn bất thường | Có rule/version, lý do, input IDs, thời điểm phát hiện; gộp một sự kiện kéo dài thành một alert |
-| F04 | Xác nhận, bác bỏ hoặc ghi chưa đủ bằng chứng cho cảnh báo | Kết quả review, thời điểm và người thao tác truy vết được; acknowledgment không đồng nghĩa cảnh báo đúng |
-| F05 | Dự báo tại điểm ở mốc +15 và +60 phút khi đủ dữ liệu | Có prediction/target time, model hoặc baseline version, trạng thái freshness/eligibility; không điền số giả khi chưa sẵn sàng |
-| F06 | Bằng chứng kết hợp traffic, weather và road event nếu match được | Truy được nguồn; sự kiện ambiguous/unmatched không tự gán vào một điểm; context không trở thành khẳng định nhân quả |
-| F07 | So thời điểm tại điểm được chọn: hiện tại, +15 và +60 | Cùng mốc phát hành `t0`, hiển thị hiện trạng/dự báo và bất định; nếu thiếu dữ liệu phải trả lý do |
-| F08 | So template tuyến trong phạm vi điểm hiện có | Hiển thị geometry hợp lệ, các điểm nằm trên tuyến, cảnh báo và dự báo tại điểm; nêu rõ phần chưa quan sát |
-| F09 | Theo dõi chất lượng và kết quả sử dụng | Có freshness/coverage/invalid/duplicate/late metrics, outcome model và review cảnh báo |
-| F10 | Replay một trường hợp để giải thích lại quyết định | Truy đúng dữ liệu/version tại thời điểm ra quyết định; kết quả reprocessing mới được phân biệt |
+| F01 | Twelve-point overview with city filter, consistent map/list | All points remain visible, including unobserved points; update time and quality state are explicit |
+| F02 | Point detail: current measurement, history, baseline and context | Distinguish observation/forecast; show source, units, timestamps and missing-data intervals |
+| F03 | Current alerts and suspected anomalies | Rule/version, reason, input IDs and detection time; merge sustained signals into one alert |
+| F04 | Confirm, reject or mark insufficient evidence for an alert | Trace reviewer/action time/outcome; acknowledgment does not mean the alert is correct |
+| F05 | Point forecasts at +15/+60 minutes when eligible | Prediction/target time, model or baseline version, freshness/eligibility; no invented values when unavailable |
+| F06 | Combined traffic/weather/road-event evidence when matched | Trace sources; ambiguous/unmatched events are not assigned automatically; context is not a causal claim |
+| F07 | Compare now/+15/+60 at a selected point | Same issue time `t0`, explicit observed/predicted state and uncertainty; explain unavailable data |
+| F08 | Compare route templates within existing point scope | Valid geometry, matched points, alerts and point forecasts; identify unobserved road sections |
+| F09 | Track data quality and usage outcomes | Freshness/coverage/invalid/duplicate/late metrics, model outcomes and alert reviews |
+| F10 | Replay a case to explain its decision | Recover the actual data/version known then; distinguish new reprocessing results |
 
-F04 yêu cầu ghi trạng thái qua API/dashboard, bổ sung vào API hiện chủ yếu đọc. Phạm vi là thao tác review trong môi trường MVP được kiểm soát; ghi reviewer từ danh tính thực hoặc nhãn vận hành công khai, không mặc định hệ thống đã có xác thực production.
+F04 requires a write path in the controlled MVP API/dashboard. Record a real identity or an explicit operator label; do not imply production authentication exists. F06 requires a working, evaluated context path, not successful matching of every RSS item. Report unmatched, ambiguous, expired and matched counts. Missing context does not mean no incident occurred.
 
-F06 yêu cầu đường đi context hoạt động và được đánh giá, không đòi mọi RSS đều được match. Luôn có số lượng unmatched, ambiguous, expired và matched; thiếu context không đồng nghĩa không có incident.
+## 4. Initial observation and alert policies
 
-## 4. Chính sách quan sát và cảnh báo đầu tiên
+### 4.1 Time and missing data
 
-### 4.1. Thời gian và dữ liệu thiếu
+Traffic polling defaults to 300 seconds. Include request execution time in the actual observed cadence. Traffic observations older than two cycles (default 600 seconds) become `stale`; weather/RSS use their own thresholds. Distinguish `observed`, `stale`, `missing`, `unsupported` and `fetch_error`. Keep pipeline state separate from the most recent traffic state.
 
-- Mặc định traffic polling 300 giây theo hướng vận hành hiện tại. Một chu kỳ phải tính cả thời gian thực hiện request; lịch polling thực đo được ghi nhận.
-- Observation cũ hơn hai chu kỳ traffic, mặc định 600 giây, được gắn `stale`. Đây là mặc định cấu hình; không dùng cùng ngưỡng cho weather và RSS.
-- Phân biệt `observed`, `stale`, `missing`, `unsupported`, `fetch_error`. Trạng thái pipeline được giữ riêng với trạng thái giao thông gần nhất.
-- Phản hồi API vừa lấy không chứng minh provider vừa đo: ghi poll time riêng và source observation time nếu nguồn có. Nếu không có source time, gắn timestamp basis là poll time.
-- Dùng UTC trong lưu trữ; UI hiển thị giờ Việt Nam kèm rõ đơn vị/múi giờ ở các biểu đồ liên quan.
-- Không thay missing/low confidence thành speed = 0. Số 0 hợp lệ cần giữ riêng với tình trạng không quan sát được và road closure.
+A newly fetched API response does not establish a newly measured observation. Store poll time separately from source observation time; if unavailable, label timestamp basis as poll time. Persist UTC; show Vietnam time and explicit timezone/units on relevant charts. Missing or low-confidence data must not become speed zero. Preserve genuine observed zero separately from missingness and road closure.
 
-### 4.2. Baseline rule minh bạch
+### 4.2 Transparent baseline rule
 
-Mặc định khởi đầu để chạy thử: tỷ lệ speed/free-flow ≤ 0.50 ở hai mẫu mới liên tiếp, quality hợp lệ và provider confidence ≥ 0.50 tạo cảnh báo tốc độ thấp. Khoảng cách hai mẫu không vượt 600 giây; mẫu trùng/late không tính là một xác nhận mới. Hai mẫu mới có tỷ lệ ≥ 0.65 cho phép đóng cảnh báo tự động. Vùng giữa hai ngưỡng giữ trạng thái để giảm chập chờn.
+Initial low-speed rule: speed/free-flow ratio ≤0.50 for two fresh consecutive observations, valid quality and provider confidence ≥0.50. Their gap must not exceed 600 seconds; duplicate/late samples do not count as a new confirmation. Two fresh samples with ratio ≥0.65 allow automatic resolution. Between thresholds retain state to avoid flapping.
 
-Đây là rule “tốc độ thấp so free-flow”, chưa phải bằng chứng “khác thường so cùng giờ/ngày”. Năng lực bất thường bổ sung baseline theo khung giờ/loại ngày khi có đủ lịch sử, được đánh giá so rule ban đầu. Ngưỡng seasonal và policy được version hóa, chọn trên train/validation rồi giữ cố định trên test.
+This detects low speed relative to free flow; it is not yet a same-hour/day anomaly detector. Add seasonal/day-type baselines when sufficient history exists and compare against this initial rule. Version seasonal thresholds and policies; select on train/validation and freeze before test.
 
-Provider không gửi confidence thì lưu unknown; không mặc định bằng 1 để vượt điều kiện cảnh báo đã xác nhận bằng chất lượng nguồn. Có thể hiển thị tín hiệu cần kiểm tra với nhãn thiếu confidence.
+Missing provider confidence remains unknown, never silently 1. A provisional signal may be shown with a missing-confidence label. Source-confirmed closure is a separate event type and need not wait for the low-speed rule. On stale/offline sources retain the last alert as unverified; do not auto-resolve. With five-minute polling do not promise second-level detection: report delay using actual cadence and timestamp basis.
 
-Closure có bằng chứng từ nguồn hợp lệ là loại sự kiện riêng và không phải chờ rule tốc độ thấp. Khi nguồn stale/offline, giữ cảnh báo gần nhất với nhãn chưa xác minh; không tự resolved. Không khẳng định độ trễ cảnh báo tính bằng giây khi polling là năm phút; báo detection delay theo timestamp basis và cadence thực tế.
+Alert lifecycle and review outcome are independent dimensions. Severity describes policy-based impact; confidence describes certainty. Potentially severe uncertain alerts may still deserve operator attention.
 
-Lifecycle cảnh báo và kết quả review là hai chiều riêng. Severity mô tả mức ảnh hưởng theo policy; confidence mô tả độ chắc chắn. Cảnh báo thiếu chắc chắn vẫn có thể được ưu tiên kiểm tra nếu tác động tiềm năng lớn.
+## 5. Forecasting and source fusion
 
-## 5. Forecast và kết hợp nguồn
+1. Compare persistence, seasonal/historical medians, Ridge and LightGBM using walk-forward evaluation on the same cohort. +15 is primary for early warning; +60 supports departure comparisons. +240 is outside acceptance for this version, even if generic package configuration supports it.
+2. Learned forecasting uses the configured minimum 28-day train and 7-day validation windows. With insufficient history serve an explicitly labelled baseline and mark advanced forecasting unproven.
+3. Hold out test data from parameter/threshold selection. Report samples, folds and slices. Pinball loss on the final training window does not establish calibration.
+4. Weather, road events and neighbor features must share offline/online definitions and availability. Unsupported/missing features need explicit state and handling policy.
+5. Neighbors require verified location, direction and relationships. Geographic proximity alone does not establish upstream/downstream; do not force neighbors for every point.
+6. Evaluate p10–p90 using out-of-sample empirical coverage, interval width and pinball loss. Provider confidence, model uncertainty and source freshness are distinct.
+7. Label congestion probability calibrated only after calibration validation. A score inferred from three quantiles remains heuristic/estimated otherwise.
+8. Match a prediction to a valid observation near target time using a versioned tolerance, initially ±150 seconds for 300-second cadence. Select nearest event time; on equal distance choose earlier event time; deduplicate identical times first. No observation means unavailable outcome, not success/failure.
+9. Claim improvement only after useful out-of-sample gain against the best baseline with important slices within configured regression gates. Otherwise retain the baseline and publish the result. LightGBM promotion is not mandatory.
 
-1. So persistence, seasonal/historical baseline, Ridge và LightGBM bằng walk-forward trên cùng cohort. +15 là mốc chính cho cảnh báo sớm; +60 hỗ trợ so thời điểm đi. +240 nằm ngoài điều kiện nghiệm thu phiên bản này.
-2. Dùng lịch sử đủ dài theo training config hiện có cho mô hình học máy: cửa sổ train tối thiểu 28 ngày, validation 7 ngày. Nếu chưa đủ, phục vụ baseline có nhãn rõ; báo forecasting nâng cao là chưa đủ bằng chứng.
-3. Tách test ngoài quá trình chọn tham số và ngưỡng; báo số mẫu/fold/slice. Pinball loss trên training window không là bằng chứng calibration.
-4. Weather, road event và neighbor feature phải giống nhau về định nghĩa/availability ở offline và online; feature chưa hỗ trợ hoặc thiếu dữ liệu có trạng thái rõ và chính sách xử lý missing.
-5. Neighbor chỉ được dùng khi có mapping vị trí, hướng và quan hệ hợp lệ; gần nhau theo khoảng cách chưa đủ xác nhận quan hệ upstream/downstream. Không ép đủ neighbor cho cả 12 điểm.
-6. Đánh giá p10–p90 bằng coverage thực nghiệm, độ rộng và pinball loss ngoài mẫu. Provider confidence, model uncertainty và source freshness là ba thông tin khác nhau.
-7. Probability ùn tắc chỉ xuất hiện dưới nhãn xác suất đã hiệu chuẩn khi có kiểm chứng calibration; score suy từ ba quantile phải mang nhãn heuristic/estimated nếu chưa đạt.
-8. Outcome ghép prediction với observation hợp lệ gần target time theo tolerance có version; mặc định cửa sổ ±150 giây cho cadence 300 giây. Chọn event time gần nhất; cùng khoảng cách chọn event time sớm hơn; bản ghi cùng thời điểm phải được dedup trước. Không có observation thì outcome là unavailable, chưa được coi là dự báo đúng/sai.
-9. Báo hiệu quả nâng cao khi ngoài mẫu có cải thiện so baseline tốt nhất và các slice quan trọng không bị suy giảm ngoài gate cấu hình. Nếu không đạt, giữ baseline để phục vụ và công khai kết quả; không bắt buộc promote LightGBM.
+## 6. Departure and route advice within 12 points
 
-## 6. Chọn thời điểm và tuyến: cam kết chính xác trong 12 điểm
+### 6.1 Mandatory MVP experience
 
-### 6.1. Luồng bắt buộc của MVP
+Compare now/+15/+60 for one point at common `t0`. The conclusion describes expected traffic at that point; it does not establish earlier arrival. Provide two templates with the same origin/destination in one case-study city, selected by valid real geometry. All 12 monitoring points remain visible.
 
-- Người dùng chọn một điểm để so hiện tại với +15/+60 tại cùng `t0`. Kết luận mô tả mức giao thông dự kiến ở điểm đó; chưa chuyển thành “đến nơi sớm hơn”.
-- Có hai template tuyến cùng điểm đi–đến ở một thành phố trong phạm vi case study; chọn thành phố theo tính hợp lệ và nguồn geometry thực tế. Giữ tất cả 12 điểm trên màn hình giám sát.
-- Template cần source/network version, hướng đi, vehicle mode và điểm nằm trên tuyến đã match. Mặc định case study dùng ô tô; không tự suy khả năng áp dụng cho xe máy.
-- Mỗi template phải đi qua ít nhất một điểm hiện có; hai template phải có phần đường khác nhau được nhận diện. Không nối các anchor bằng đường thẳng rồi gọi đó là tuyến hợp lệ.
-- Nếu không tìm được hai template hợp lệ với các điểm hiện có, ghi blocker của F08 cùng bằng chứng mapping; không thêm điểm hoặc công bố F08 hoàn thành bằng mock route.
-- Thẻ tuyến hiển thị số điểm mới/tổng điểm đã map, các điểm tắc/closure, trạng thái dự báo và đoạn đường thiếu quan sát. Số điểm mới không được đổi thành phần trăm chiều dài tuyến có coverage.
-- Tư vấn tại điểm và so sánh bằng chứng trên tuyến là kết quả bắt buộc. Thiếu dữ liệu để phân biệt hai tuyến phải là kết quả hợp lệ, kèm lý do dễ hiểu.
+Each template records source/network version, direction, vehicle mode and matched points. Start with cars; do not infer motorcycle applicability. Each passes at least one existing point and has identifiable differing road sections. Straight lines connecting anchors are not valid routes. If two valid templates cannot be found within the current points, record the F08 blocker with mapping evidence; do not add points or claim completion using mock routes.
 
-### 6.2. Gate cho ETA toàn tuyến và xếp hạng tuyến
+Route cards show fresh/total matched points, congested/closed points, forecast state and unobserved sections. Fresh-point count is not length-based route coverage. Point advice and route evidence comparison are mandatory. Insufficient evidence to distinguish routes is a valid result with a clear explanation; it does not alone satisfy all route delivery requirements.
 
-ETA toàn tuyến là năng lực có điều kiện, không là lý do mở rộng 12 điểm trong MVP. Chỉ mở khi có toàn bộ: directed segments và chiều dài hợp lệ; mapping/hướng chính xác; policy cho mọi đoạn thiếu; bottleneck coverage; dự báo tại thời điểm tới từng đoạn; và dữ liệu hành trình để đánh giá sai số.
+### 6.2 Gate for full-route ETA and ranking
 
-Mọi fallback từ historical/engine phải mang provenance riêng. Không dùng một tốc độ anchor để đại diện toàn tuyến khi chưa kiểm chứng. Không cộng quantile tốc độ từng đoạn thành quantile ETA; không gọi route nhanh nhất khi chỉ biết trạng thái vài điểm.
+Full-route ETA is conditional and does not justify expanding the 12-point scope. Require all: valid directed segments/lengths; accurate mapping/direction; a policy for every unobserved section; bottleneck coverage; predictions at expected segment-entry time; journey ground truth for error evaluation.
 
-Nếu gate đạt, so giờ xuất phát phải báo riêng: thời gian chờ trước đi, thời gian trên đường, thời gian đến và bất định. Default objective là đến sớm nhất; ít thời gian trên đường là lựa chọn khác. Chỉ so các mốc trong horizon được đánh giá, tính cả thời điểm dự kiến tới đoạn cuối. Khi chênh lệch nhỏ hơn sai số hoặc ranking nhạy với phần thiếu, trả về chưa đủ bằng chứng để ưu tiên.
+Historical/engine fallbacks retain their own provenance. Do not extrapolate one anchor speed across an unvalidated route. Do not sum segment speed quantiles into ETA quantiles. Do not claim fastest route from a few observed points.
 
-## 7. Computer vision: thử nghiệm nhỏ và có điều kiện
+Once eligible, departure comparison separately shows predeparture wait, travel time, arrival time and uncertainty. Earliest arrival is the default objective; least time on the road is another objective. Compare only evaluated horizons, including predicted entry to the last segment. If differences are smaller than error or ranking depends on missing-section assumptions, return insufficient evidence to prefer one option.
 
-CV là nhánh nghiên cứu bổ sung cho MVP; phần core 12 điểm không phụ thuộc vào việc có live camera hoặc GPU. Thử nghiệm dùng một video/góc camera cố định được phép sử dụng, ưu tiên vị trí trùng một điểm nếu có thể.
+## 7. Computer vision: small conditional experiment
 
-Đầu ra: số xe qua vạch theo hướng và cửa sổ; số xe hiện diện trong ROI; trạng thái hàng chờ ordinal hoặc tỷ lệ track dừng. Báo model/ROI version, observation time, processing time và quality. Đánh giá với nhãn thủ công theo điều kiện quay, đặc biệt xe máy/che khuất nếu tuyên bố hỗ trợ giao thông Việt Nam.
+CV is supplementary research; the 12-point core must not depend on a live camera/GPU. Use one permitted fixed-view video, preferably colocated with a point. Outputs: directional line-crossing counts per window; ROI occupancy count; ordinal queue state or stationary-track fraction. Record model/ROI version, observation/processing time and quality. Evaluate manually labelled footage under claimed conditions, especially motorcycles and occlusion for Vietnamese traffic.
 
-Video benchmark khác địa điểm chỉ chứng minh nhánh CV riêng. Chỉ ghép vào forecast/alert pilot sau khi chứng minh mapping, thời gian và paired data phù hợp. Camera offline/che khuất tạo missingness; không count = 0. Speed km/h và queue length theo mét cần calibration/ground truth riêng.
+A different-location benchmark proves only the standalone CV path. Integrate with forecasting/alerts only after location/time mapping and paired-data validation. Offline/occluded camera creates missingness, not zero count. Speed km/h and queue length in meters require separate calibration/ground truth.
 
-Deliverable CV: báo cáo khả thi, count/queue accuracy, runtime và chi phí; kết luận tích hợp, giữ nghiên cứu riêng hoặc defer có lý do. Nếu chưa có video hợp lệ, ghi điều kiện còn thiếu và không tạo số liệu minh họa như kết quả đo.
+Deliver feasibility, count/queue accuracy, runtime and cost report, then decide integrate, retain as research or defer with reasons. Without lawful video, document the missing input; never present illustrative values as measured results.
 
-## 8. Yêu cầu Data Engineering và vận hành
+## 8. Data Engineering and operations requirements
 
-| ID | Hợp đồng bắt buộc | Evidence |
+| ID | Mandatory contract | Acceptance evidence |
 |---|---|---|
-| D01 | Raw payload hoặc reference/hash theo quyền sử dụng; source ID, schema version, thời điểm, poll outcome | Truy một observation về nguồn; lỗi một điểm không chặn 11 điểm còn lại |
-| D02 | Canonical observation tách measurement khỏi quality; point/provider/segment mapping có version | Mapping report cho đủ 12 điểm, gồm ambiguous/unsupported; dedup provider segment |
-| D03 | `event_time`, `ingested_at`, `available_at`, source time basis và late policy nhất quán | Feature không đọc dữ liệu khả dụng sau prediction time; giữ bằng chứng first-seen trong lịch sử |
-| D04 | Weather theo cell; RSS có location/time extraction, evidence và dedup | Matched/unmatched/expired metrics; thiếu source không bị hiểu là không có sự kiện |
-| D05 | Snapshot/version dùng chung cho feature offline/online | So cùng input ra feature tương đương; missing-value policy không làm mất toàn bộ cohort một cách âm thầm |
-| D06 | Raw/archive, feature, forecast, alert và outcome có owner persistence rõ ràng | Sự kiện đi được tới operational store và API; có xử lý retry, sink lỗi và checkpoint/recovery |
-| D07 | Replay/idempotency qua Kafka, lake và PostgreSQL | Retry không nhân bản cùng kết quả; historical replay không ghi đè current mới hơn bằng sự kiện cũ |
-| D08 | Dataset manifest và model/rules lineage | Dataset window/object IDs, feature/schema version, code snapshot và model/rule version truy vết được |
-| D09 | Metrics và tình trạng phụ thuộc | Coverage theo điểm và theo source; invalid/late/duplicate/freshness; health không chỉ suy từ PostgreSQL |
-| D10 | Bounded retention và cost | Request count, payload/video size, artifact lifecycle và compute report; quyền lưu nguồn được ghi nhận |
+| D01 | Raw payload or rights-permitted reference/hash; source ID, schema, time and poll outcome | Trace an observation to source; failure at one point does not block the other 11 |
+| D02 | Canonical observation separates measurement/quality; version point/provider/segment mapping | All-12 mapping report includes ambiguous/unsupported points; deduplicate provider segments |
+| D03 | Consistent event/ingestion/availability time, source-time basis and lateness policy | Features exclude data available after prediction time; preserve historical first-seen evidence |
+| D04 | Cell-matched weather; RSS location/time extraction, evidence and dedup | Matched/unmatched/expired metrics; missing source does not mean no event |
+| D05 | Shared versioned offline/online feature snapshot | Equivalent features from the same inputs; missing handling does not silently remove the whole cohort |
+| D06 | Explicit persistence owners for raw/archive, features, forecasts, alerts and outcomes | Events reach operational store/API; retry, sink failure, checkpoint and recovery are handled |
+| D07 | Replay/idempotency across Kafka, lake and PostgreSQL | Retry does not duplicate results; old replay does not overwrite newer current state |
+| D08 | Dataset manifests and model/rule lineage | Dataset window/object IDs, feature/schema/code snapshot and model/rule version are traceable |
+| D09 | Metrics and dependency status | Point/source coverage; invalid/late/duplicate/freshness; health is more than PostgreSQL availability |
+| D10 | Bounded retention and cost | Requests, payload/video size, artifact lifecycle and compute report; record source-storage rights |
 
-Không dùng active weather/RSS mapping ở hiện tại để âm thầm diễn giải lại toàn bộ lịch sử. Replay tái hiện quyết định và reprocessing bằng logic mới là hai mode có nhãn riêng.
+Do not silently apply today's weather/RSS mappings to all historical data. Decision reproduction and new-logic reprocessing are separately labelled modes. Reuse Kafka, Flink/Python, MinIO/S3, PostgreSQL, Airflow and MLflow. Redis requires measurable need; do not add engines/databases/orchestrators merely for breadth.
 
-Tận dụng stack trong repo: Kafka, Flink/Python, MinIO/S3, PostgreSQL, Airflow và MLflow. Redis dùng khi có nhu cầu đo được. Không thêm engine, database hoặc orchestration framework mới chỉ để có thêm công nghệ.
+## 9. Acceptance matrix and evidence boundaries
 
-## 9. Bảng nghiệm thu và giới hạn bằng chứng
-
-| Nhóm | Điều kiện bắt buộc | Cách báo kết quả |
+| Group | Mandatory acceptance | Reporting requirements |
 |---|---|---|
-| Scope | Đúng 12 ID/tọa độ, 6 điểm mỗi thành phố | Tách configured points, reporting points và unique provider segments |
-| Dữ liệu lỗi | Có case missing, stale, fetch_error, zero hợp lệ, closure | Không biến outage thành thông đường; không tự resolved khi mất nguồn |
-| Alert | Có nhãn event, rule baseline, review flow, hysteresis và dedup | Event precision/recall, false alarms/observed point-hour, detection delay; nói rõ điểm trùng physical segment |
-| Forecast | Có ngoài mẫu, baseline comparisons, outcomes và fallback | +15/+60 báo riêng; samples/folds, MAE/bias, interval coverage; chưa đủ dữ liệu thì chưa xác nhận learned forecasting |
-| Context | Có extraction/match và validity windows, đường đi feature thực sự chạy | Ablation cùng cohort; report riêng tăng coverage với cải thiện model |
-| Departure | So hiện tại/+15/+60 tại điểm và cùng thời điểm phát hành | Không dùng dữ liệu tương lai trong replay; không suy thời gian đến từ point forecast |
-| Route | Hai template hợp lệ hoặc blocker được ghi rõ; giao diện hỗ trợ insufficient evidence | Phân biệt point coverage với route coverage; ETA/ranking chỉ mở khi qua gate |
-| E2E | Nguồn/replay raw → normalize → features → forecast/alert → PostgreSQL → API/dashboard | Lưu run ID, thời gian, code snapshot, counts và lỗi; phụ thuộc bên ngoài được xác minh riêng |
-| Reproducibility | Replay và fault/retry cases có bằng chứng | Có trace end-to-end và dữ liệu/version; không gọi fixture-only là live integration |
-| CV | Có report nhánh thử nghiệm hoặc lý do chưa thể chạy | Benchmark/local video/live đúng địa điểm là ba loại bằng chứng khác nhau |
+| Scope | Exactly configured 12 IDs/coordinates, six per city | Separate configured points, reporting points and unique provider segments |
+| Bad data | Missing, stale, fetch_error, valid zero and closure cases | Outage is not clear traffic; missing source never auto-resolves alerts |
+| Alert | Event labels, baseline, review, hysteresis and dedup | Event precision/recall, false alarms per observed point-hour, detection delay; identify shared physical segments |
+| Forecast | Out-of-sample baseline comparisons, outcomes and fallback | Separate +15/+60 samples/folds, MAE/bias, coverage; insufficient history leaves learned capability unverified |
+| Context | Extraction/matching, validity windows and executed feature path | Same-cohort ablation; separate added coverage from model improvement |
+| Departure | Now/+15/+60 at the point and same issue time | No future data in replay; no arrival-time inference from point forecasts |
+| Route | Two valid templates or explicit blocker; insufficient-evidence UI | Distinguish point/route coverage; gate ETA and ranking |
+| E2E | Source/replay raw→normalize→features→forecast/alert→PostgreSQL→API/dashboard | Run ID, timestamp, code snapshot, counts/errors; verify external dependencies separately |
+| Reproducibility | Replay and fault/retry evidence | End-to-end trace/data/version; fixtures alone are not live integration |
+| CV | Experiment report or reason it could not run | Distinguish foreign benchmark, local video and live colocated evidence |
 
-Ngưỡng severity, seasonal anomaly và gate model được chọn trên train/validation, ghi trong config và khóa trước test. Ngưỡng mặc định ở mục 4 phục vụ vòng đầu; báo số đo thật thay vì khẳng định đạt một KPI chưa được thiết lập.
+Select severity/seasonal/model gates on train/validation, persist in config and lock before test. Report measurements rather than an unestablished KPI. A model that loses to baseline does not invalidate the pipeline, but a convincing fixture forecast proves neither live pipeline nor provider coverage/route advice.
 
-Một mô hình chưa thắng baseline không làm mất giá trị pipeline; phải giữ baseline và trạng thái capability đúng sự thật. Ngược lại, forecast đẹp trên fixture không chứng minh pipeline live, coverage nguồn hoặc khả năng tư vấn tuyến.
+## 10. Delivery order and exclusions
 
-## 10. Thứ tự thực hiện sau bản yêu cầu
+1. Inventory/map all 12 points; confirm source, timestamps, coverage and route case study using permitted data.
+2. Close canonical/quality contracts and end-to-end persistence; show all points and missing/error states.
+3. Deliver monitoring baseline, alert lifecycle/review and evidence trace.
+4. Build point-in-time features and +15/+60 evaluation; serve a baseline until a learned model has evidence.
+5. Add matched/expiring weather/RSS; evaluate parity and source-group value.
+6. Deliver point departure comparisons and template cards; assess ETA eligibility and retain insufficient-evidence behavior.
+7. Run a bounded CV experiment and measure benefit/cost; lawful-video discovery may start at step 1.
+8. Execute E2E, replay/recovery and both user walkthroughs; report achieved, incomplete and limited capabilities.
 
-1. Kiểm kê và mapping 12 điểm; xác nhận nguồn, timestamps, coverage và case study tuyến bằng dữ liệu có sẵn/được phép lấy.
-2. Đóng hợp đồng canonical/quality và persistence end-to-end; operational UI luôn đủ 12 điểm, gồm lỗi/missing.
-3. Làm baseline giám sát, alert lifecycle/review và trace bằng chứng.
-4. Hoàn thiện point-in-time feature và đánh giá forecast +15/+60; phục vụ baseline trước nếu chưa có model đủ bằng chứng.
-5. Thêm context weather/RSS có match/expiry, kiểm tra parity và giá trị từng nhóm nguồn.
-6. Hoàn thiện so thời điểm tại điểm và thẻ template tuyến; đánh giá gate ETA, giữ insufficient evidence khi chưa đạt.
-7. Thử CV có phạm vi nhỏ, đo lợi ích/chi phí rồi quyết định tích hợp; thu thập video hợp lệ có thể bắt đầu từ bước 1.
-8. Chạy nghiệm thu E2E, replay/recovery và walkthrough hai luồng người dùng; ghi rõ các capability đạt, chưa đạt và giới hạn.
+Out of scope: more points, full-network routing, ground-truth-free ETA, multicamera tracking, plate recognition, GNN/Transformer, automatic signal control and chatbots.
 
-Mở rộng số điểm, full-network routing, ETA không có ground truth, tracking đa camera, nhận diện biển số, GNN/Transformer, tự điều khiển đèn và chatbot nằm ngoài MVP v1.
+## 11. Required delivery artifacts
 
-## 11. Các artifact cần bàn giao khi triển khai
+Provide all-12 mapping/coverage matrix, source-use register and vehicle/network-versioned templates; contracts/config/rules/quality/model gates, migrations and F01–F10 worker/API/UI; dataset/evaluation manifests and baseline/forecast/context reports; CV feasibility report if inputs permit; code/run-linked E2E/replay/recovery evidence and capability/open-defect register; run instructions, coverage limits and both-user demo scripts.
 
-- Bảng mapping/coverage 12 điểm; source-use register; template tuyến với vehicle/network version.
-- Hợp đồng dữ liệu và config rule/quality/model; migrations và worker/API/UI đáp ứng F01–F10.
-- Dataset/evaluation manifest; baseline/forecast/context report; CV feasibility report nếu đủ đầu vào.
-- Evidence E2E và replay/recovery gắn code snapshot/run ID; danh sách capability và lỗi còn mở.
-- Hướng dẫn chạy MVP, giới hạn nguồn/độ phủ và kịch bản demo cho người giám sát và người đi đường.
+If F08 or learned forecasting lacks data prerequisites, explicitly record it incomplete. A fallback message does not turn an unmet requirement into completed work. Every scoped spec/plan traces to these requirement IDs.
 
-Nếu F08 hoặc learned forecast chưa đạt điều kiện dữ liệu, phiên bản bàn giao phải ghi nhận rõ phần chưa đạt; không đổi yêu cầu thành hoàn thành chỉ bằng một thông báo fallback. Spec/implementation plan tiếp theo phải trace từng hạng mục về ID yêu cầu trong tài liệu này.
+## 12. Approved decisions from reference-repository research
 
-## 12. Quyết định đã duyệt sau nghiên cứu ba repo
+The user approved [the three-repository review](../research/reference-repositories-review-v1.md). These decisions supplement data/architecture requirements while preserving 12-point product scope.
 
-Căn cứ: [báo cáo đối chiếu repo](../research/reference-repositories-review-v1.md) và phản hồi “duyệt” của người dùng. Các quyết định này bổ sung yêu cầu dữ liệu/kiến trúc, giữ phạm vi sản phẩm ở 12 điểm.
-
-| ID | Quyết định | Điều kiện nghiệm thu |
+| ID | Approved decision | Acceptance criteria |
 |---|---|---|
-| B01 | Tách dataset benchmark khỏi dữ liệu vận hành | Dataset ID, measurement, mode live/replay và source identity theo được tới manifest/model/outcome; benchmark không ghi current state hoặc metrics của 12 điểm Việt Nam |
-| B02 | METR-LA là dataset speed benchmark đầu tiên | Subset, unit, timezone/timestamp basis, split và target +15/+60 được xác minh; báo riêng kết quả benchmark và kết quả địa phương |
-| B03 | UA-DETRAC dùng cho CV spike có giới hạn | Giữ sequence split và observation time; đo count theo ROI/line crossing; chỉ tích hợp pilot khi có mapping/paired data phù hợp |
-| B04 | LargeST là dataset flow/scale có điều kiện | Schema/unit/aggregation/missing mask riêng; quyền sử dụng được ghi nhận; không đổi flow thành speed để đưa vào training |
-| B05 | Học cách tách worker inference khỏi stream engine | CV/ML inference nặng và artifact I/O tách khỏi feature job; retry, idempotency và state recovery có policy và evidence |
-| B06 | Tách sensor graph khỏi road graph | Neighbor/impact graph không được coi là mạng định tuyến; ETA/routing tiếp tục tuân theo gate ở mục 6.2 |
+| B01 | Separate benchmark/operational datasets | Dataset ID, measurement, mode and source identity reach manifest/model/outcome; benchmarks never update Vietnamese live state or metrics |
+| B02 | METR-LA is the first speed benchmark | Verify subset, units, timezone/timestamp basis, splits and +15/+60 targets; label benchmark/local results separately |
+| B03 | Bounded UA-DETRAC CV spike | Preserve sequence split/observation time; ROI/line-crossing evaluation; pilot integration requires valid mapping/paired data |
+| B04 | LargeST is conditional flow/scale research | Separate schema/unit/aggregation/missing mask and documented rights; never rename flow to speed |
+| B05 | Separate inference workers from stream engine | Heavy CV/ML and artifact I/O stay outside feature job; retry/idempotency/state recovery have policy/evidence |
+| B06 | Separate sensor graph from road graph | Neighbor/impact graph is not a routing network; ETA/routing still obey section 6.2 |
 
-NYC TLC chưa có bài toán cần đưa vào MVP. Giữ stack hiện tại; ONNX, Spark/Delta, GNN hoặc routing engine mới chỉ được xem xét khi có yêu cầu/đo đạc cụ thể. Nhập dữ liệu công khai không tự chứng minh multimodal fusion có hiệu quả.
+NYC TLC has no current MVP requirement. Consider ONNX, Spark/Delta, GNN or a new routing engine only for a concrete measured need. Public-dataset ingestion does not prove multimodal fusion improves results. See [roadmap](../superpowers/plans/2026-10-26-cognitive-traffic-mvp-roadmap.md) and [P1 specification](../superpowers/specs/2026-10-26-registry-dataset-boundaries.md).
 
-Kế hoạch tổng thể và trace yêu cầu: [MVP delivery roadmap](../superpowers/plans/2026-10-26-cognitive-traffic-mvp-roadmap.md). Subsystem đầu tiên: [registry và ranh giới dataset](../superpowers/specs/2026-10-26-registry-dataset-boundaries.md).
+## 13. Notebook-first training and evaluation
 
-## 13. Huấn luyện và đánh giá model trong notebooks
+The user requires all model-training execution in `notebooks/`: forecasting, speed benchmark and CV fine-tuning when justified. Do not introduce another independent training workflow.
 
-Người dùng yêu cầu phần cần train model được thực hiện trong `notebooks/`. Quy tắc này áp dụng cho forecasting, speed benchmark và CV fine-tuning nếu thử nghiệm cho thấy cần thiết; không tạo một workflow train độc lập khác trong MVP.
-
-| ID | Yêu cầu | Điều kiện nghiệm thu |
+| ID | Requirement | Acceptance criteria |
 |---|---|---|
-| N01 | Notebook là điểm thực thi huấn luyện, đánh giá và chọn candidate model | Chạy lại từ kernel sạch theo thứ tự cell; tham số dataset, split, seed và horizon được khai báo đầu notebook |
-| N02 | Notebook tái sử dụng logic package | Import feature/target/split/evaluation/training/artifact helpers từ `src/cognitive_traffic`; không nhân bản logic feature khác với inference |
-| N03 | Forecast notebook phân biệt local MVP và benchmark | Một lần chạy chọn một dataset namespace; horizon +15/+60, target time và temporal split rõ; không dùng benchmark model làm champion Việt Nam khi chưa có local evaluation |
-| N04 | Notebook xuất artifact độc lập để phục vụ | Bundle, feature order/schema/version, preprocessing, dataset/split manifest, metrics theo horizon/fold và run/environment metadata; inference không phụ thuộc notebook kernel |
-| N05 | Notebook là nguồn evidence có thể tái tạo | Báo baseline/out-of-sample metrics, calibration và missingness; artifact có checksum/reference; không coi cell output cũ là kết quả đã chạy trên code/data hiện tại |
+| N01 | Notebook executes training, evaluation and candidate selection | Clean-kernel sequential execution; dataset/split/seed/horizons declared first |
+| N02 | Notebook reuses package logic | Import feature/target/split/evaluation/training/artifact helpers from `src/cognitive_traffic`; do not duplicate inference feature logic |
+| N03 | Separate local MVP/benchmark runs | One namespace per run, +15/+60 targets and temporal split explicit; benchmark model is not Vietnamese champion without local evaluation |
+| N04 | Export independent serving artifact | Bundle, feature order/schema/version, preprocessing, dataset/split manifest, per-horizon/fold metrics, run/environment metadata; inference independent of kernel |
+| N05 | Notebook is reproducible evidence | Baseline/out-of-sample/calibration/missingness reports and checksum/reference; stale cell outputs are not evidence on current code/data |
 
-### Phân công notebook
+`notebooks/exploration.ipynb` owns dataset audit→baseline→+15/+60 forecasting→evaluation→export, with separate local/METR-LA runs. Create `notebooks/cv_experiments.ipynb` in P7 only with lawful video: test pretrained detector/tracker/count first; fine-tune only with justified need and sufficient sequence/camera-level labels/splits. Create `notebooks/largest_flow_benchmark.ipynb` only when B04 activates, with independently verified flow target/units.
 
-- `notebooks/exploration.ipynb`: cập nhật notebook hiện có thành workflow dataset audit → baseline → forecasting +15/+60 → evaluation → export. Cấu hình dataset cho phép local MVP hoặc METR-LA trong các run tách biệt.
-- `notebooks/cv_experiments.ipynb`: tạo ở P7 nếu có video hợp lệ; kiểm tra pretrained detector/tracker/count trước, chỉ fine-tune khi có lý do và split/nhãn đủ. Giữ đánh giá theo sequence/camera.
-- `notebooks/largest_flow_benchmark.ipynb`: chỉ tạo khi kích hoạt nghiên cứu LargeST B04; target flow và đơn vị được xác minh riêng.
+The old notebook's removed `ml.*` imports and artifact layout must be migrated before use as evidence. Write local artifacts under `.local/`, Kaggle artifacts under `/kaggle/working`; handoff may upload to MinIO/MLflow. Do not commit model binaries, large data or credentials. Inference loads only evaluated eligible artifacts.
 
-Notebook hiện có còn import `ml.training.*`/`ml.tracking.*` và ghi artifact theo layout cũ; P4 cần chuyển sang package hiện tại. Đây là yêu cầu cần thực hiện, chưa là xác nhận notebook đang chạy được.
-
-Artifact local ghi `.local/`; trên Kaggle dùng `/kaggle/working`; artifact bàn giao có thể upload MinIO/MLflow. Không commit model binaries hoặc credential vào notebook/repo. Inference worker chỉ load artifact đã được đánh giá theo gate.
-
-Airflow phục vụ dataset preparation, DQ/replay và kiểm tra artifact/gate. DAG `orchestration/dags/train_forecast.py` hiện gọi train trực tiếp; P4 cần điều chỉnh lifecycle này theo notebook-produced artifacts để tránh hai quy trình train khác nhau. Không tự chạy hoặc sửa DAG ở bước cập nhật yêu cầu này.
-
-P1 registry/dataset boundaries giữ nguyên. Không cần viết lại toàn roadmap; spec/implementation plan chi tiết P4 và P7 phải bao gồm N01–N05 khi đến phase tương ứng.
+Airflow handles dataset preparation, DQ/replay and artifact/gate validation. `orchestration/dags/train_forecast.py` must accept notebook-produced candidates and measured checks, never execute a second training path or infer a passed gate from constants. P1 remains unchanged; detailed P4/P7 plans must include N01–N05.

@@ -1,185 +1,130 @@
-# Đối chiếu LargeST, smart-traffic và smart_traffic_routing với Cognitive Traffic
+# LargeST, smart-traffic and smart_traffic_routing compared with Cognitive Traffic
 
-- Ngày nghiên cứu: 2026-10-26. Phiên bản: 1.0.
-- Trạng thái quyết định: người dùng đã duyệt các khuyến nghị; đã đưa vào mục 12 của bản yêu cầu MVP v1.1. Evidence code/dataset trong báo cáo vẫn giữ giới hạn bên dưới.
-- Phạm vi đối chiếu: [MVP 12 điểm](../requirements/cognitive-traffic-mvp-v1.md), người giám sát là chính, hỗ trợ chọn giờ/tuyến là phụ, ưu tiên Data Engineering.
-- Bằng chứng: đọc README, code ingestion/preprocessing/training/worker/streaming/routing, notebook chuẩn bị dữ liệu và bài báo/nguồn phân phối liên quan.
-- Giới hạn: chưa chạy ba repo, chưa tải các dataset đầy đủ, chưa huấn luyện model hoặc đo throughput/accuracy. Dataset được xem ở mức tài liệu, metadata được mô tả, schema và loader; chưa xác minh chất lượng raw files bằng profiling.
-- Báo cáo đưa ra quyết định nghiên cứu; chưa thay đổi yêu cầu MVP hoặc triển khai kiến trúc mới.
+Research date: 2026-10-26. Version 1.1, canonical English edition. The user approved these recommendations, now requirements B01–B06. Scope is the [12-point MVP](../requirements/cognitive-traffic-mvp-v1.md), operator first, departure/route support second, Data Engineering focused.
 
-## 1. Kết luận để ra quyết định
+Evidence: historical reading of READMEs, ingestion/preprocessing/training/worker/stream/routing code, preparation notebooks, papers and distribution references. The three repositories were not executed; complete datasets were not downloaded/profiled; models, throughput and accuracy were not reproduced. Findings are static research, not proof of current external availability or runtime. Historical full edition: Git revision `43ac84e62ec06a0a92429d1db5d87ca056f6b804`.
 
-Ba repo cung cấp ba phần bổ sung nhau: LargeST cho phương pháp tổ chức dữ liệu và benchmark; smart-traffic cho tách modality/inference/stream/storage; smart_traffic_routing cho luồng sản phẩm từ dự đoán đến lựa chọn tuyến. Mức phù hợp của ý tưởng và mức hoàn thiện implementation phải được đánh giá riêng.
+## 1. Decision
 
-| Repo | Phần phù hợp nhất | Áp dụng cho MVP | Giới hạn cần giữ |
+LargeST informs data/benchmark organization; smart-traffic informs modality/inference/stream/storage separation; smart_traffic_routing informs prediction-to-choice UX. Idea suitability and implementation maturity are separate.
+
+| Repository | Useful idea | MVP application | Limitation |
 |---|---|---|---|
-| LargeST | Sensor metadata, network-based adjacency, long-history benchmarking | Học registry, subset/manifest, temporal split, đánh giá accuracy và chi phí | Dữ liệu chính là flow California, không phải speed hay ground truth 12 điểm Việt Nam |
-| smart-traffic | Kafka worker riêng cho CV/ML, per-entity state, schema và metrics | Tham khảo ranh giới worker và CV result contract; tận dụng Flink/MinIO/PostgreSQL hiện có | Dataset khác địa lý/thời gian; prediction worker hiện horizon 0; routing chỉ lookup graph distances |
-| smart_traffic_routing | Trải nghiệm chọn OD, nhìn route và dự đoán tác động | Học cách trình bày decision flow và giải thích lựa chọn | Routing code dùng graph thủ công và dummy features; chưa là bằng chứng adaptive routing theo dữ liệu live |
+| LargeST | Sensor metadata, network adjacency, long history | Registry/subsets/manifests, temporal splits, accuracy/cost | California flow, not Vietnamese speed/ground truth |
+| smart-traffic | Separate Kafka CV/ML workers, entity state, schemas/metrics | Worker/result contracts using existing Flink/MinIO/PostgreSQL | Different places/times; prediction horizon zero; graph-distance lookup is not routing |
+| smart_traffic_routing | OD selection, route/forecast decision flow | Explain predicted conditions and choices | Hand-built graph and dummy features do not prove live adaptive routing |
 
-Khuyến nghị dataset: METR-LA cho nhánh speed benchmark đầu tiên; một vài sequence UA-DETRAC cho CV; LargeST subset cho flow/scale experiment sau. NYC TLC chưa có yêu cầu cụ thể trong MVP này. Dữ liệu thật tại 12 điểm vẫn quyết định khả năng sử dụng ở Việt Nam.
+Use METR-LA first for speed, a few lawful UA-DETRAC sequences for CV, and a later LargeST subset for flow/scale. NYC TLC lacks a current requirement. Actual 12-point data determines Vietnamese utility.
 
-## 2. Snapshot và nguồn chính
+## 2. Inspected snapshots
 
-| Repo | Commit được đọc | Ngày commit |
+| Repository | Inspected revision | Commit date |
 |---|---|---|
 | liuxu77/LargeST | `b7c6ff5f7f0c10051ed10a319b2cfe58021312f9` | 2023-11-01 |
 | zubiiabbasi/smart-traffic | `02f33a82e80cbae8bd034d5e3616da82dc2cb014` | 2026-05-11 |
 | devarshpatel1506/smart_traffic_routing | `24d92f7b15ccae72da14a99ca9bc5f579bb41e91` | 2025-09-25 |
 
-Repo routing có recursive tree bị GitHub cắt ngắn; đã đọc thêm directory listings của `scripts/` và `streaming/` để lấy các file trọng tâm. Không kết luận đã audit toàn bộ file/binary/PDF trong repo. Các đường dẫn nguồn dưới đây được pin theo commit để kết luận có thể kiểm tra lại.
+GitHub truncated the routing repository recursive tree; directory listings of scripts/streaming were also read. This is not a whole-repository/binary/PDF audit. Source links are pinned for reproducibility.
 
-## 3. LargeST: học cách làm dữ liệu và benchmark
+## 3. LargeST: data and benchmarking
 
-### Dataset và phạm vi sử dụng
+The paper describes California PeMS mainline data, 2017–2021, original five-minute cadence: CA 8,600 sensors, GLA 3,834, GBA 2,352, SD 716. Primary target is flow. Metadata includes location, road, direction, lanes and district. OSRM road-distance sensor graph and normalized adjacency serve models, not a travel-time edge table. Paper experiments use 2019 data, 15-minute resampling and chronological 60/20/20 splits. [Paper sections 4–5](https://arxiv.org/html/2306.08259v2).
 
-Bài báo mô tả dữ liệu PeMS mainline tại California, 2017–2021, chu kỳ gốc 5 phút; CA có 8.600 sensor, GLA 3.834, GBA 2.352 và SD 716. Target chính là traffic flow. Metadata gồm vị trí, đường, hướng, làn và district. Sensor graph dựa trên road-network distance qua OSRM; adjacency sau chuẩn hóa phục vụ mô hình, chưa phải bảng travel-time edges. Thí nghiệm paper dùng dữ liệu 2019, resample 15 phút và chia thời gian 60/20/20. [Bài báo, mục 4–5](https://arxiv.org/html/2306.08259v2).
+The README points to Kaggle: five history HDF5 files, metadata CSV and adjacency NPY. Code is MIT; authors state dataset CC BY-NC 4.0. Check third-party baseline licenses separately; code and dataset rights differ. [README/license](https://github.com/liuxu77/LargeST/blob/b7c6ff5f7f0c10051ed10a319b2cfe58021312f9/README.md).
 
-README trỏ Kaggle với năm file HDF5 lịch sử, một CSV metadata và một NPY adjacency. Code MIT; dataset được tác giả công bố theo CC BY-NC 4.0, khác giấy phép code. Khi chọn baseline bên thứ ba phải đọc giấy phép tương ứng. [README và license dataset](https://github.com/liuxu77/LargeST/blob/b7c6ff5f7f0c10051ed10a319b2cfe58021312f9/README.md).
+CA preprocessing uses `mean().round(0)` and `fillna(0)`. This convention does not make values 15-minute vehicle totals. Declare measurement/unit/aggregation and preserve missing masks. Generator adds time-of-day/day-of-week, normalizes and saves train/validation/test indices. Twelve history/future steps after resampling differ from the MVP's five-minute cadence. Its `DataFrame.append` needs pandas 2.x adaptation; do not import the old research environment into runtime dependencies. [Preprocessing](https://github.com/liuxu77/LargeST/blob/b7c6ff5f7f0c10051ed10a319b2cfe58021312f9/data/ca/process_ca_his.ipynb), [generator](https://github.com/liuxu77/LargeST/blob/b7c6ff5f7f0c10051ed10a319b2cfe58021312f9/data/generate_data_for_training.py).
 
-### Những gì code thực sự làm
+**Keep:** per-sensor metadata, geographic subsets, explicit targets/splits, accuracy and cost reporting. Start small and scale replay/compaction research; an external labelled benchmark does not enlarge the 12-point product. **Change:** wide HDF5→canonical long sensor/time/value/unit/quality with provenance/manifests; split on time/target availability, fit transforms only on train, check horizon boundaries. Zero is not automatically missing; flow is not speed. **Defer:** all GNNs/full CA. Flow/scale research does not directly yield Hanoi/HCMC speed models; adjacency does not prove route validity.
 
-- Notebook CA resample bằng `mean().round(0)` và `fillna(0)`. Đây là convention preprocessing; không tự biến kết quả thành tổng số xe trong 15 phút. Cognitive Traffic cần khai báo rõ measurement/unit/aggregation và giữ missing mask.
-- Training generator thêm time-of-day/day-of-week, chuẩn hóa và lưu indices train/val/test riêng. Mặc định 12 bước lịch sử và 12 bước tương lai; sau resample đó là bài toán khác cadence 5 phút ở MVP.
-- Generator dùng `DataFrame.append`, cần chỉnh tương thích trước khi dùng với pandas 2.x của dự án. Không bê nguyên môi trường nghiên cứu cũ vào production dependencies.
+## 4. smart-traffic: closest architecture, semantics need correction
 
-Nguồn: [CA preprocessing notebook](https://github.com/liuxu77/LargeST/blob/b7c6ff5f7f0c10051ed10a319b2cfe58021312f9/data/ca/process_ca_his.ipynb), [training generator](https://github.com/liuxu77/LargeST/blob/b7c6ff5f7f0c10051ed10a319b2cfe58021312f9/data/generate_data_for_training.py).
+The reference has sensor/GPS/CCTV/weather producers, Kafka YOLO/ML workers, Delta stream sinks, MinIO result images and a snapshot/image dashboard. Heavy inference/upload can have separate resources/retry policy. [Architecture](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/README.md). Apply the separation to optional CV and existing forecasts; retain Flink event time/features, MinIO artifacts and PostgreSQL/API reads. No requirement justifies replacing the stack with Spark/Delta/Streamlit/ONNX. Consider ONNX only after measured inference/deployment benefit.
 
-### Kết luận áp dụng
+Multiple datasets do not establish fusion. Sensors use METR-LA speed with source time/ingested_at; GPS reads NYC taxi pickup/dropoff zones/times/distances; CCTV replays UA-DETRAC; weather is current OpenWeatherMap. These lack common Vietnamese location/time mapping. TLC trip-zone records are not per-edge GPS trajectories; official data notes accuracy limitations. [TLC](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page), [GPS producer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/producers/gps_producer.py), [sensor producer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/producers/sensor_producer.py).
 
-**Keep:** metadata theo sensor, subsetting theo khu vực, split và target có định nghĩa rõ, đo cả accuracy và chi phí. Có thể dùng một subset nhỏ trước, tăng kích thước để nghiên cứu replay/compaction/benchmark; giới hạn 12 điểm của sản phẩm không cấm một benchmark bên ngoài được gắn nhãn riêng.
-
-**Change:** chuyển HDF5 wide sang canonical long-form có sensor/time/value/unit/quality, lưu provenance và dataset manifest. Chia theo timestamp/target availability, fit transform trên train và kiểm tra ranh giới horizon. Không coi zero luôn là missing hoặc flow là speed.
-
-**Defer:** chạy cả bộ GNN và toàn CA ngay. LargeST có thể giúp nghiên cứu flow/scale, nhưng không trực tiếp huấn luyện một speed model dùng được tại Hà Nội/TP.HCM. Một graph sensor adjacency cũng chưa giải quyết tính hợp lệ của tuyến xe đi.
-
-## 4. smart-traffic: kiến trúc gần nhất, cần chỉnh semantics
-
-### Phần kiến trúc đáng học
-
-Repo có producers cho sensor/GPS/CCTV/weather; YOLO và ML worker giao tiếp qua Kafka; stream jobs ghi Delta; MinIO chứa ảnh kết quả; dashboard đọc snapshot và URL ảnh. Đây là cách tách phần inference/object upload khỏi stream engine để phần tính toán nặng có thể chạy với tài nguyên và retry policy riêng. [Architecture README](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/README.md).
-
-Với Cognitive Traffic, dùng cùng nguyên tắc cho CV worker tùy chọn và forecast worker hiện có. Flink tiếp tục sở hữu event time/features; MinIO lưu artifact; PostgreSQL/API phục vụ operational reads. Chưa có requirement khiến pattern này đòi Spark, Delta, Streamlit hoặc ONNX thay stack hiện tại. ONNX chỉ đáng thêm sau khi profile chỉ ra lợi ích deployment/inference cụ thể.
-
-### Dataset nhiều nguồn chưa đồng nghĩa fusion đã được kiểm chứng
-
-Sensor producer đọc METR-LA speed và giữ timestamp nguồn cùng `ingested_at`; GPS producer đọc taxi NYC dạng pickup/dropoff zone/time và distance; CCTV producer replay UA-DETRAC; weather producer lấy OpenWeatherMap hiện tại. Các nguồn này chưa tự có mapping chung theo vị trí/thời điểm để kiểm chứng một mô hình fusion cho 12 điểm Việt Nam.
-
-NYC TLC trong loader là trip records theo zone, không phải GPS trajectory dọc từng cạnh đường. Nguồn TLC xác nhận các trường pickup/dropoff/time/distance và lưu ý giới hạn độ chính xác. [TLC chính thức](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page), [GPS producer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/producers/gps_producer.py), [sensor producer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/producers/sensor_producer.py).
-
-### Các điểm cần sửa trước khi tái sử dụng
-
-| Chủ đề | Bằng chứng static | Hệ quả cho dự án |
+| Topic | Static finding | Required correction |
 |---|---|---|
-| Horizon | Worker xuất `horizon_minutes: 0`, actual/predicted cùng timestamp | Không lấy kết quả đó làm bằng chứng +15/+60. Cần target shift và target time rõ |
-| Evaluation | Trainer dùng `train_test_split(... shuffle=True)` | Chuyển chronological/walk-forward; random split không chứng minh generalization sang tương lai |
-| Feature parity | `grouped.shift(1).rolling(...)` tạo rolling trên Series đã flatten; online rolling chỉ theo sensor | Rủi ro cửa sổ chạm ranh giới sensor; cần grouped rolling và kiểm chứng parity trước khi dùng |
-| Warm start | Mặc định đọc 30 phút nhưng feature lag_1h cần 12 mẫu cadence 5 phút | Chưa bảo đảm đủ lịch sử sau restart; cần bootstrap đủ window và giới hạn đúng cutoff |
+| Horizon | Worker emits horizon_minutes=0, actual/prediction share time | Explicit shifted target/target time before +15/+60 claim |
+| Evaluation | train_test_split with shuffle=True | Chronological/walk-forward future evaluation |
+| Features | grouped.shift(1).rolling operates on flattened Series; online rolling per sensor | Grouped rolling, boundary tests, offline/online parity |
+| Warm start | Thirty-minute default, lag_1h needs twelve five-minute samples | Bootstrap full history with correct cutoff |
 
-Nguồn: [ML trainer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/ml/train_speed_model.py), [ML worker](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/ml_predictor_worker/main.py).
+[Trainer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/ml/train_speed_model.py), [worker](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/ml_predictor_worker/main.py).
 
-| Chủ đề CV/stream | Bằng chứng static | Điều chỉnh cần có |
+| CV/stream topic | Static finding | Required correction |
 |---|---|---|
-| Counting | `unique_count_5min` là số track ID xuất hiện trong processing-time window | Chưa là flow qua vạch, queue length hoặc density; thêm ROI/line crossing và đánh giá count theo định nghĩa sản phẩm |
-| Replay time | CCTV producer gán `time.time()` khi phát lại frame; worker dùng clock hiện tại cho window và stale-drop | Giữ clip/frame time riêng; không diễn giải tốc độ replay thành thời gian quan sát thật |
-| Recovery | Tracker/count ở memory; loop commit offset độc lập với publish ack; process có thể return khi lỗi | Không suy ra exactly-once end-to-end. Cần policy fail/retry/DLQ và idempotent sink; kiểm chứng restart/rebalance |
-| Raw transport | Frame base64 đi qua Kafka, MinIO nhận ảnh annotated | Với dự án này ưu tiên video/frame references có checksum; giữ raw evidence nếu quyền/retention cho phép |
+| Count | unique_count_5min counts appeared track IDs in processing time | Not line-crossing flow, queue length or density; add/evaluate actual ROI/line definition |
+| Replay time | Producer assigns time.time; worker current-clock windows/stale drop | Preserve clip/frame observation time, independent of replay speed |
+| Recovery | In-memory tracks/count, offset commit independent of publish acknowledgment, errors can return | No inferred exactly-once; explicit fail/retry/DLQ/idempotent sink and restart/rebalance evidence |
+| Transport | Base64 Kafka frames; MinIO annotated images | Prefer checksummed video/frame references; retain raw evidence only within rights/retention |
 
-Nguồn: [YOLO worker](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/yolo_worker/main.py), [CCTV producer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/producers/cctv_producer.py).
+[YOLO worker](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/yolo_worker/main.py), [CCTV producer](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/producers/cctv_producer.py).
 
-Hai điểm graph/UI cần lưu ý: `graph_analytics.py` tính shortest-path hop count tới landmarks bằng NetworkX; `stream_sensors.py` lookup khoảng cách đó khi speed dưới ngưỡng. Chưa phải tính tuyến mới tránh congestion theo forecast. Metadata loader còn có fallback đặt sensor thật lên synthetic grid khi thiếu CSV; grid này không đủ để xác nhận vị trí nguồn. [Graph analytics](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/spark_jobs/graph_analytics.py), [stream sensors](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/spark_jobs/stream_sensors.py), [metadata loader](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/spark_jobs/load_sensor_metadata.py).
+`graph_analytics.py` computes NetworkX shortest-path hop counts to landmarks; stream_sensors looks them up below a speed threshold. It does not reroute around predicted congestion. The metadata loader can place real sensors on a synthetic grid when CSV is absent; that does not verify location. [Graph](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/spark_jobs/graph_analytics.py), [stream](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/spark_jobs/stream_sensors.py), [metadata](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/spark_jobs/load_sensor_metadata.py).
 
-CV converter có điểm tốt: chia theo annotation XML/sequence thay vì random từng frame. Nhưng nó gộp XML từ train/test gốc rồi chia lại; cần manifest và không so kết quả trực tiếp với official benchmark split. Nó đưa mọi object về một class vehicle và bỏ frame không có label; cần xét lại negative frames và class xe máy nếu áp dụng địa phương. [Converter](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/scripts/convert_yolo_fast.py).
+CV conversion splits XML/sequences rather than random frames, which is useful, but merges official train/test XML then resplits: preserve manifest and do not claim official-benchmark comparability. It collapses objects to vehicle and drops unlabelled frames; reconsider negatives and motorcycles locally. [Converter](https://github.com/zubiiabbasi/smart-traffic/blob/02f33a82e80cbae8bd034d5e3616da82dc2cb014/scripts/convert_yolo_fast.py). Adopt worker/schema/metric ideas; correct time, measurement, evaluation and recovery before code reuse.
 
-**Kết luận:** đây là reference gần nhất cho ranh giới hệ thống và nhánh CV. Dùng ý tưởng tách worker, schema và metrics; sửa time/measurement/evaluation/recovery trước khi tái sử dụng code.
+## 5. smart_traffic_routing: useful decision flow, illustrative execution
 
-## 5. smart_traffic_routing: đúng hướng trải nghiệm, execution còn minh họa
+README traffic/weather/incident→features→prediction/classification→edge costs→route→dashboard fits the secondary user journey. Present routes with conditions/reasons rather than disconnected charts. [Architecture](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/README.md).
 
-### Luồng ý tưởng phù hợp
+The traffic producer reads local PeMS station/flow/occupancy/speed/location but replaces historical time with current UTC and emits every second. Incidents are random; weather is current Open-Meteo. This is integration simulation, not aligned historical context labels. Input CSVs were not found at inspected paths; source paths refer to the author's Desktop. The repository is not a verified packaged dataset. [Traffic](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/kafka_traffic_producer.py), [incident](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/kafka_incident_producer.py), [weather](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/kafka_weather_producer.py).
 
-README nối traffic/weather/incident → features → forecasting/classification → edge costs → route → dashboard. Luồng này gần nhu cầu thứ hai của Cognitive Traffic: người dùng thấy dữ liệu thay đổi ảnh hưởng lựa chọn thế nào. Học cách trình bày route cùng predicted conditions và lý do, thay vì thêm chart rời rạc. [README architecture](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/README.md).
+MongoDB join rounds coordinates to one decimal, permits context later than traffic and inner-joins weather, losing unmatched traffic. No available_at check blocks future context. The inspected XGBoost is same-row speed regression with random split and zero imputation; another script uses LinearRegression. The described LSTM→XGBoost classifier path and README metrics were not reproduced. [Join](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/spark_mongodb_writer.py), [XGBoost](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/scripts/xgboost_model.py), [training](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/scripts/model_training.py).
 
-### Dataset và code khác với mức mô tả
+A* and dashboard use an undirected manually connected city/landmark graph, geodesic distance and the same dummy feature row per edge: model speeds are identical across edges in one graph, rather than live/arrival-dependent costs. Very low speed becomes 5.0. Heuristic distance km and travel-time-hour weights have inconsistent units/lower bound; optimality is not established. Use Dijkstra first or a same-unit admissible travel-time lower bound with justified maximum speed. NetworkX warns overestimating heuristics may miss shortest paths. [A*](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/A%2A/a_star_routing.py), [dashboard](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/dashboard/dashboard.py), [NetworkX contract](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.astar.astar_path.html).
 
-- Traffic producer đọc local PeMS CSV có station, flow, occupancy, speed và location, nhưng thay historical timestamp bằng giờ UTC hiện tại rồi phát từng dòng một giây. Incident producer tạo incident ngẫu nhiên; weather producer lấy Open-Meteo hiện tại. Đây là mô phỏng tích hợp, chưa chứng minh quan hệ weather/incident với historical traffic.
-- Chưa thấy local CSV đầu vào được cung cấp trong các đường dẫn đã kiểm tra; đường dẫn nguồn là đường dẫn Desktop trên máy tác giả. Không coi repo là một dataset đóng gói, có thể tải và dùng ngay.
+Learn the decision UX and forecast-dependent cost idea; do not adopt this as the routing engine. Directed network, lengths, vehicle access, mapping and ETA validation remain open.
 
-Nguồn: [Traffic producer](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/kafka_traffic_producer.py), [incident producer](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/kafka_incident_producer.py), [weather producer](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/kafka_weather_producer.py).
+## 6. Dataset fitness
 
-- MongoDB streaming join làm tròn lat/lon một chữ số thập phân; điều kiện cho phép weather/incident có timestamp sau traffic. Weather là inner join nên thiếu weather có thể làm mất traffic. Chưa có kiểm tra `available_at` để chặn context chỉ xuất hiện sau thời điểm dự báo.
-- Script XGBoost đã đọc là regression với target speed cùng hàng, random train/test split và fill missing bằng 0. Script training khác dùng LinearRegression. Chưa xác minh được execution path LSTM → XGBoost classifier như mô tả; các số metric trong README chưa được tôi tái lập.
-
-Nguồn: [Streaming MongoDB join](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/streaming/spark_mongodb_writer.py), [XGBoost training](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/scripts/xgboost_model.py), [training script](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/scripts/model_training.py).
-
-### Routing: những điều không thể suy từ demo
-
-`a_star_routing.py` và dashboard dùng undirected graph, danh sách kết nối thủ công giữa các thành phố/địa danh, khoảng cách geodesic, và cùng một dòng dummy input cho mọi cạnh. Suy ra tốc độ model dự đoán giống nhau giữa các cạnh trong một lần dựng graph; chưa có cost riêng theo live conditions hoặc thời điểm tới cạnh. Tốc độ rất thấp còn được thay bằng 5.0.
-
-Heuristic A* trả distance km trong khi weight là travel time giờ. Đây là lỗi về đơn vị/lower-bound của heuristic; không thể dựa vào đó để bảo đảm tối ưu. NetworkX nêu rõ heuristic overestimate có thể trả đường không ngắn nhất. Khi cần triển khai, dùng Dijkstra trước hoặc một lower-bound travel time cùng đơn vị có giả định tốc độ tối đa hợp lệ.
-
-Nguồn: [A* implementation](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/A%2A/a_star_routing.py), [dashboard](https://github.com/devarshpatel1506/smart_traffic_routing/blob/24d92f7b15ccae72da14a99ca9bc5f579bb41e91/dashboard/dashboard.py), [NetworkX A* contract](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.astar.astar_path.html).
-
-**Kết luận:** học trải nghiệm quyết định và ý tưởng cost phụ thuộc dự báo; chưa dùng code này làm nền routing engine của dự án. Directed network, road length, vehicle access, edge mapping và ETA validation vẫn cần giải quyết trong phạm vi yêu cầu hiện tại.
-
-## 6. Dataset nào hợp với việc gì?
-
-| Dataset | Đối tượng dữ liệu | Dùng cho Cognitive Traffic | Không dùng để kết luận |
+| Dataset | Actual measurement | Useful for | Does not establish |
 |---|---|---|---|
-| 12 điểm Việt Nam hiện tại | Provider speed/travel context tại điểm; weather/RSS địa phương | Primary source cho usability, alerts, forecast và case study MVP | Không đại diện mọi đường/hướng ở hai thành phố |
-| METR-LA | Freeway speed time series và sensor adjacency | Speed +15/+60 benchmark, kiểm tra feature/replay; chọn subset cố định nếu muốn nhẹ | Model tốt trên LA không chứng minh model tốt trên Việt Nam; adjacency không là full road network |
-| LargeST | Flow time series, sensor metadata và adjacency California | Dataset engineering, missingness, temporal/spatial slices, flow forecasting hoặc scale | Không đổi flow sang speed bằng cách đổi tên cột; không là ETA ground truth |
-| UA-DETRAC | Video sequence, bounding boxes/tracks và điều kiện quay | Detector/tracker, count/ROI spike, reproducible CV replay | Không là video đồng bộ với METR-LA hoặc với 12 điểm Việt Nam |
-| NYC TLC | Taxi trip time/location zone/distance | Defer; cân nhắc nếu thêm bài toán OD demand/travel reliability riêng | Không có per-edge trajectory trong loader đã đọc; không là demand tại Việt Nam |
-| PeMS CSV trong repo routing | Flow/occupancy/speed được đọc từ file local của tác giả | Học adapter contract; chỉ dùng sau khi xác định provenance, schema, unit và availability | Repo không chứng minh bộ traffic + weather + synthetic incidents là nhãn thực |
+| Twelve Vietnamese points | Provider speed/travel context, local weather/RSS | Primary usability/alerts/forecast/case study | All roads/directions in either city |
+| METR-LA | Freeway speed series/sensor adjacency | +15/+60 speed, features/replay, fixed small subset | Vietnamese validity or full road graph |
+| LargeST | California flow series/metadata/adjacency | Missingness/slices/data engineering/flow/scale | Speed by renaming, or ETA ground truth |
+| UA-DETRAC | Sequences, boxes/tracks, filming conditions | Detector/tracker/count/ROI/reproducible replay | Paired METR-LA or Vietnamese video |
+| NYC TLC | Taxi times/zones/distances | Deferred unless OD-demand/reliability problem arises | Per-edge trajectory or Vietnamese demand |
+| Routing PeMS CSV | Author-local flow/occupancy/speed | Adapter contract after provenance/schema/unit/availability checks | Real aligned traffic/weather/synthetic-incident labels |
 
-UA-DETRAC paper mô tả 100 sequence, hơn 140.000 frame với nhãn weather/occlusion/category/bounding boxes. Trang phân phối UA-DETRAC không truy cập được bằng công cụ web ở lượt này; khả năng tải hiện tại và quyền sử dụng cụ thể chưa được xác minh. [Paper UA-DETRAC](https://arxiv.org/abs/1511.04136).
+UA-DETRAC paper describes 100 sequences, over 140,000 frames, weather/occlusion/category/box labels. Distribution site could not be accessed during original research; current download availability/specific rights were not verified. [Paper](https://arxiv.org/abs/1511.04136).
 
-## 7. Kiến trúc đề xuất sau khi học từ ba repo
+## 7. Proposed logical architecture
 
 ```mermaid
 flowchart LR
-    L[12 điểm live + weather/RSS] --> K[Kafka raw]
-    B[Replay benchmark có dataset namespace] --> K
-    K --> N[Normalize và quality]
-    K --> A[MinIO raw archive]
-    V[Video hợp lệ trong object storage] --> C[CV worker tùy chọn]
-    C --> O[Observation tổng hợp + evidence reference]
+    L[Twelve live points and weather/RSS] --> K[Kafka raw]
+    B[Namespaced benchmark replay] --> K
+    K --> N[Normalize and quality]
+    K --> A[MinIO archive]
+    V[Permitted video in object storage] --> C[Optional CV worker]
+    C --> O[Aggregate observations and evidence references]
     O --> N
     N --> F[Flink point-in-time features]
-    F --> P[Forecast worker và alert policy]
+    F --> P[Forecast worker and alert policy]
     P --> S[PostgreSQL operational state]
-    S --> U[API + dashboard giám sát]
-    S --> R[So thời điểm và template tuyến có coverage gate]
-    A --> T[Airflow: dataset, evaluation, replay]
-    T --> M[MLflow + model artifacts]
+    S --> U[Operator API and dashboard]
+    S --> R[Departure and route templates with coverage gate]
+    A --> T[Dataset preparation and replay orchestration]
+    T --> Q[Notebook evaluation and candidate export]
+    Q --> M[MLflow and model artifacts]
     M --> P
 ```
 
-Đây là đề xuất ranh giới logic; không khẳng định mọi cạnh đã được triển khai. Benchmark phải có dataset namespace, measurement type và mode live/replay để không ghi vào current state hoặc metrics của 12 điểm Việt Nam. Có thể dùng cùng code path trong run/config tách biệt; chưa cần thêm cluster.
+This is a proposal, not proof every edge runs. The notebook evaluation boundary incorporates the later approved N01–N05 requirement. Benchmark dataset/measurement/live-replay identity must prevent writes to Vietnamese current state/metrics. Shared code in separated runs/configs suffices; no new cluster required.
 
-Điểm điều chỉnh có giá trị sau nghiên cứu:
+Separate benchmark capability from operational capability in manifests/UI/registry. Establish speed/flow/ROI count/unique tracks/queue semantics before modelling. Preserve target/horizon and event/availability/replay time adapter→feature→forecast→outcome. CV owns detection/tracking/artifacts; Flink owns event-time features; heavy inference is not a synchronous feature-job call. Sensor impact graph is not road routing; hop count is not ETA. Show unsupported/insufficient evidence rather than invented locations.
 
-1. Tách **benchmark capability** khỏi **production capability** ngay trong manifest, UI/report và model registry.
-2. Ghi **measurement semantics** trước model: speed, flow, ROI count, unique tracks và queue state là các đại lượng khác nhau.
-3. Giữ **model target/horizon** và **event/availability/replay time** xuyên suốt adapter → features → forecast → outcome.
-4. CV worker sở hữu detection/tracking và artifact; Flink sở hữu feature/event time; không biến inference nặng thành synchronous call trong feature job.
-5. Tách **sensor graph** cho feature/impact khỏi **road graph** cho routing; không dùng hop count làm ETA.
-6. Dashboard ưu tiên câu trả lời và evidence, với trạng thái unsupported/insufficient evidence; không dùng synthetic location để che missing metadata.
+## 8. Recommended sequence
 
-## 8. Hành động nên thực hiện theo thứ tự
+1. Complete 12-point registry/provenance: mapping, timestamp basis, quality and blind spots.
+2. METR-LA speed benchmark with fixed subset/split/units, correct +15/+60 targets and reused feature logic; label separately.
+3. Few lawful CV sequences with source timing, sequence split, line/ROI/manual labels and measured runtime.
+4. LargeST subset only for flow/scale need; separate schema/missing mask/aggregation, never merge into speed training.
+5. Complete monitoring/template cards with explicit live/replay evidence; no extra points to make a route demo.
 
-| Bước | Công việc đề xuất | Tiêu chí quyết định |
-|---|---|---|
-| 1 | Hoàn thành registry và provenance của 12 điểm hiện tại | Cố định mapping/source time basis/quality; biết chỗ nào chưa quan sát được |
-| 2 | Làm một METR-LA speed benchmark với subset/split/units cố định | Đo +15/+60 đúng target; tái dùng feature logic; kết quả benchmark có nhãn riêng |
-| 3 | Làm CV spike bằng vài sequence hợp lệ | Giữ source timing, sequence split, line crossing/ROI và manual count ground truth; đo runtime thực |
-| 4 | Chạy LargeST subset khi cần kiểm chứng flow/scale | Schema riêng cho flow; giữ missing mask và aggregation policy; chưa gộp vào speed training |
-| 5 | Hoàn thiện luồng giám sát và thẻ template tuyến | Bằng chứng live/replay rõ; không đòi mở thêm điểm để demo route |
+Three public datasets are unnecessary for a multimodal label. Three working adapters prove technical integration; fusion improvement requires aligned place/time and suitable ablation.
 
-Không cần nhập đồng thời cả ba dataset công khai để có sản phẩm “multimodal”. Có ba adapter chạy được là bằng chứng tích hợp kỹ thuật; improvement do fusion đòi dữ liệu trùng địa điểm/thời gian và ablation phù hợp.
+## 9. Resulting decision
 
-## 9. Kết luận cuối
-
-Chọn smart-traffic làm reference chính về ranh giới hệ thống; LargeST làm reference về dữ liệu và benchmark; smart_traffic_routing làm reference về luồng quyết định và những điều phải kiểm chứng khi đưa dự báo vào routing. Giữ nền Kafka/Flink/MinIO/PostgreSQL hiện tại và 12 điểm MVP.
-
-Thứ đáng lấy là hợp đồng và trách nhiệm từng lớp: nguồn đo có provenance → feature đúng thời điểm → suy luận tách biệt → trạng thái vận hành → quyết định có bằng chứng → outcome/replay. Mức thông minh của sản phẩm cần được chứng minh bằng chất lượng quyết định trên dữ liệu phù hợp, không suy từ số modality hoặc tên model trong architecture diagram.
+Use smart-traffic for worker boundaries, LargeST for data/benchmark design and smart_traffic_routing for decision UX and routing pitfalls. Preserve Kafka/Flink/MinIO/PostgreSQL and the 12-point MVP. The useful chain is provenance→point-in-time features→separate inference→operational state→evidenced decisions→outcomes/replay. Demonstrate decision quality on suitable data rather than count modalities or model names.

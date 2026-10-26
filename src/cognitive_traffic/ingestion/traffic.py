@@ -9,6 +9,7 @@ import requests
 import structlog
 import yaml
 
+from cognitive_traffic.monitoring.logging import configure_logging
 from cognitive_traffic.settings import get_settings
 from cognitive_traffic.streaming.producers import ContractProducer
 from cognitive_traffic.streaming.topics import TRAFFIC_RAW
@@ -32,6 +33,8 @@ def source_event(point: dict, provider_payload: dict, observed_at: datetime) -> 
         "event_time": observed_at.isoformat(),
         "ingested_at": datetime.now(UTC).isoformat(),
         "source": "tomtom",
+        "dataset_id": "vn-mvp-12",
+        "mode": "operational",
         "source_record_id": f"{point['segment_id']}:{observed_at.isoformat()}",
         "speed_kmh": flow["currentSpeed"],
         "free_flow_speed_kmh": flow["freeFlowSpeed"],
@@ -53,13 +56,14 @@ def run_once(session: requests.Session, producer: ContractProducer, points: list
             producer.send(TRAFFIC_RAW, source_event(point, response.json(), datetime.now(UTC)))
             sent += 1
         except Exception as exc:
-            LOG.warning("source_fetch_failed", road_id=point.get("segment_id"), error=str(exc))
+            LOG.warning("source_fetch_failed", road_id=point.get("segment_id"), error_type=type(exc).__name__)
     producer.flush()
     LOG.info("poll_complete", source="tomtom", sent=sent, requested=len(points))
     return sent
 
 
 def run() -> None:
+    configure_logging()
     api_key = os.environ.get("TOMTOM_API_KEY")
     if not api_key:
         raise RuntimeError("TOMTOM_API_KEY is required")

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MapContainer, Polyline, Popup, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import useSWR from "swr";
 import { apiGet } from "@/lib/api/client";
@@ -7,13 +7,17 @@ import { apiGet } from "@/lib/api/client";
 type City = "All" | "Hanoi" | "HCMC";
 type CurrentRoad = {
   road_id: string;
-  city: string;
+  city: "hanoi" | "hcmc";
   name: string;
   category: string;
   geometry: { type: "LineString"; coordinates: [number, number][] } | null;
-  event_time: string;
-  speed_kmh: number;
-  free_flow_speed_kmh: number;
+  latitude: number;
+  longitude: number;
+  coordinate_kind: "configured_anchor";
+  status: "missing" | "stale" | "live";
+  event_time: string | null;
+  speed_kmh: number | null;
+  free_flow_speed_kmh: number | null;
   confidence: number;
   source: string;
 };
@@ -25,6 +29,7 @@ const centers: Record<City, [number, number]> = {
 };
 
 function color(road: CurrentRoad) {
+  if (road.status !== "live" || road.speed_kmh === null || road.free_flow_speed_kmh === null) return "#64748b";
   const ratio = road.free_flow_speed_kmh > 0 ? road.speed_kmh / road.free_flow_speed_kmh : 0;
   if (ratio >= 0.75) return "#16a34a";
   if (ratio >= 0.5) return "#f59e0b";
@@ -33,21 +38,22 @@ function color(road: CurrentRoad) {
 }
 
 export function LiveMapView({
-  city = "Hanoi",
+  city = "All",
   onCityChange,
   onViewForecast,
 }: {
   city?: City;
   onCityChange?: (city: City) => void;
-  onViewForecast: (roadId: string) => void;
+  onViewForecast: (roadId: string, city: "hanoi" | "hcmc") => void;
 }) {
   const apiCity = city === "All" ? "" : city === "Hanoi" ? "hanoi" : "hcmc";
   const { data, error, isLoading, mutate } = useSWR<CurrentRoad[]>(
-    `/traffic/current${apiCity ? `?city=${apiCity}` : ""}`,
+    `/monitoring/points${apiCity ? `?city=${apiCity}` : ""}`,
     apiGet,
     { refreshInterval: 30_000, shouldRetryOnError: false },
   );
-  const roads = useMemo(() => (data ?? []).filter((road) => road.geometry?.coordinates.length), [data]);
+  const points = data ?? [];
+  const roads = useMemo(() => (data ?? []).filter((road) => road.geometry?.coordinates.length && road.speed_kmh !== null), [data]);
 
   return (
     <div className="space-y-4">
@@ -69,12 +75,30 @@ export function LiveMapView({
       </div>
       {error && (
         <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-          Current traffic is unavailable. No replacement or generated roads are shown.
+          Monitoring data is unavailable. {error.message}
         </div>
       )}
       <div className="overflow-hidden rounded-3xl bg-card">
         <MapContainer key={city} center={centers[city]} zoom={city === "All" ? 6 : 13} className="h-[640px] w-full">
           <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {points.map((point) => (
+            <CircleMarker key={point.road_id} center={[point.latitude, point.longitude]} radius={8}
+              pathOptions={{ color: color(point), fillOpacity: 0.7 }}>
+              <Popup>
+                <div className="min-w-48 space-y-2">
+                  <strong>{point.name}</strong>
+                  <div>Configured monitoring anchor · {point.status}</div>
+                  <div>Coordinates are anchors; road geometry is unverified unless separately supplied.</div>
+                  {point.speed_kmh === null ? <div>No measurement available</div> : (
+                    <><div>{point.speed_kmh.toFixed(1)} / {point.free_flow_speed_kmh?.toFixed(1)} km/h</div>
+                      <div>Observed {point.event_time && new Date(point.event_time).toLocaleString()}</div>
+                      <div>Source: {point.source}</div></>
+                  )}
+                  <button onClick={() => onViewForecast(point.road_id, point.city)}>View forecast</button>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
           {roads.map((road) => (
             <Polyline
               key={road.road_id}
@@ -84,10 +108,10 @@ export function LiveMapView({
               <Popup>
                 <div className="min-w-48 space-y-2">
                   <strong>{road.name}</strong>
-                  <div>{road.speed_kmh.toFixed(1)} / {road.free_flow_speed_kmh.toFixed(1)} km/h</div>
-                  <div>Updated {new Date(road.event_time).toLocaleString()}</div>
+                  <div>{road.speed_kmh?.toFixed(1)} / {road.free_flow_speed_kmh?.toFixed(1)} km/h</div>
+                  <div>Updated {road.event_time && new Date(road.event_time).toLocaleString()}</div>
                   <div>Source: {road.source}</div>
-                  <button onClick={() => onViewForecast(road.road_id)}>View forecast</button>
+                  <button onClick={() => onViewForecast(road.road_id, road.city)}>View forecast</button>
                 </div>
               </Popup>
             </Polyline>
@@ -95,7 +119,7 @@ export function LiveMapView({
         </MapContainer>
       </div>
       <div className="text-xs text-muted-foreground">
-        {isLoading ? "Loading current road state…" : `${roads.length} roads with geometry · green ≥75% free-flow, amber ≥50%, red below 50%`}
+        {isLoading ? "Loading current road state…" : `${points.length} configured anchors · ${points.filter((point) => point.status === "missing").length} missing · ${points.filter((point) => point.status === "stale").length} stale · ${roads.length} roads with supplied geometry`}
       </div>
     </div>
   );

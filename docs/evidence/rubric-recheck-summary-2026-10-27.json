@@ -1,0 +1,33 @@
+{
+  "reviewed_pre_amend_revision": "7b915bab666d08854e62fea518b32db36a66eb98",
+  "scope": "Local rubric hardening; no push or deployment",
+  "verified": {
+    "python_tests_passed": 133,
+    "node_tests_passed": 3,
+    "real_postgres_automatically_provisioned": true,
+    "browser_tests_passed": 2,
+    "npm_audit_vulnerabilities": 0,
+    "build_and_types": "passed",
+    "lint_and_compile": "passed",
+    "capacity_preflight": "refused competing stack before resource creation"
+  },
+  "latest_full_stack": {
+    "status": "not_verified",
+    "attempts_failed": 2,
+    "context": "Normal traffic app and ADG_PRO running in 3.69 GiB Docker VM",
+    "unproven_memory_override_removed": true,
+    "historical_success_reference": "local-smoke-2026-10-27.json"
+  },
+  "rubric": {
+    "estimated_source_local_score": 19,
+    "maximum": 24,
+    "conditional_post_publication_target": 20,
+    "not_an_awarded_grade": true
+  },
+  "external_gates": [
+    "public tracker publication",
+    "new PR-triggered CI execution",
+    "three qualifying human reviews",
+    "hosting and deployment deferred"
+  ]
+}

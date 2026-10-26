@@ -1,0 +1,51 @@
+{
+  "project": "cognitive-rubric-98b89c18cd",
+  "status": "passed",
+  "browser_verified": true,
+  "results": {
+    "telemetry": {
+      "trace_id": "d7c400a80c31475ba1cb4b46f04b9987",
+      "trace_stored": true,
+      "correlated_log_stored": true,
+      "secret_absent": true,
+      "metric_exemplars": [
+        {
+          "labels": {
+            "trace_id": "d7c400a80c31475ba1cb4b46f04b9987"
+          },
+          "value": "0.009490038999956596",
+          "timestamp": 1793042195.161
+        },
+        {
+          "labels": {
+            "trace_id": "d7c400a80c31475ba1cb4b46f04b9987"
+          },
+          "value": "0.010446225999999115",
+          "timestamp": 1793042197.259
+        }
+      ]
+    },
+    "oncall": {
+      "incident": {
+        "id": "8af559764caa15690bb5d5c9895721c9946909d883112d7b3e5d629bb7f1183d",
+        "fingerprint": "8a59abdd8aa07e62",
+        "started_at": "2026-10-26T19:17:36.831Z",
+        "received_at": 1793042261.8542707,
+        "state": "resolved",
+        "diagnosis": "semantic_operator_read_failed",
+        "requested_at": 1793042261.8542707,
+        "resolved_at": 1793042284.87469,
+        "verification": "journey_pass"
+      },
+      "executor_result": {
+        "state": "verified",
+        "at": 1793042273.1617794,
+        "action": "restart_api"
+      },
+      "executor_running_before_fault": true,
+      "recovery_attempts": 1
+    }
+  },
+  "scope": "Local isolated fixture acceptance; no provider acquisition, model training or deployment.",
+  "command": "make oncall-demo PYTHON=.local/validation/python311/bin/python"
+}

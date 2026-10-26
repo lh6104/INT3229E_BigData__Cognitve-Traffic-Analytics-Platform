@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from cognitive_traffic.api.main import app, repository
@@ -35,14 +36,21 @@ class FakeRepository:
         return []
 
 
-app.dependency_overrides[repository] = FakeRepository
-client = TestClient(app)
+@pytest.fixture
+def client():
+    original = app.dependency_overrides.copy()
+    app.dependency_overrides[repository] = FakeRepository
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(original)
 
 
-def test_api_is_small_and_operational() -> None:
+def test_api_is_small_and_operational(client) -> None:
     paths = set(app.openapi()["paths"])
     assert paths == {
         "/roads",
+        "/monitoring/points",
         "/traffic/current",
         "/traffic/history",
         "/forecasts",

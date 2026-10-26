@@ -12,6 +12,6 @@ if ! conda env list | awk '{print $1}' | grep -Fxq "$environment_name"; then
   conda create --name "$environment_name" python=3.11 pip -y
 fi
 
-conda run --name "$environment_name" python -m pip install --upgrade pip
-conda run --name "$environment_name" python -m pip install -e ".[dev]"
+conda run --name "$environment_name" python -m pip install -c constraints/python311.txt -e ".[dev]"
+conda run --name "$environment_name" python -m pip check
 conda run --name "$environment_name" python --version

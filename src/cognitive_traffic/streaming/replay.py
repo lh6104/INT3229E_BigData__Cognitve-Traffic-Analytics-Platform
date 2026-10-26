@@ -16,6 +16,11 @@ DATASET_TOPICS: dict[str, TopicSpec] = {
 }
 
 
+def replay_payload(payload: dict) -> dict:
+    """An archived operational source is no longer a live delivery on replay."""
+    return {**payload, "mode": "replay"}
+
+
 def parse_time(value: str) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
@@ -48,7 +53,7 @@ def replay(*, start: datetime, end: datetime, dataset: str | None = None) -> int
                     event_time = event_time.replace(tzinfo=UTC)
                 if start <= event_time < end:
                     payload = json.loads(record["payload_json"])
-                    producer.send(topic, payload)
+                    producer.send(topic, replay_payload(payload))
                     sent += 1
     producer.flush()
     return sent

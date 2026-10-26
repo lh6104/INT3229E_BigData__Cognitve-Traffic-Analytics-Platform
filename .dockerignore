@@ -38,3 +38,12 @@ data
 raw
 cta_training_outputs
 result/cta_training_outputs_balanced_v3_latest
+
+.local
+frontend/.legacy-node_modules
+frontend/test-results
+frontend/playwright-report
+
+frontend/.legacy-tanstack
+
+test-results

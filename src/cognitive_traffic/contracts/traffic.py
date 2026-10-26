@@ -8,6 +8,8 @@ from cognitive_traffic.contracts.events import EventMetadata, deterministic_even
 
 
 class TrafficObservation(EventMetadata):
+    dataset_id: str = "unspecified"
+    mode: str = "unspecified"
     road_id: str
     city: str
     speed_kmh: float = Field(ge=0, le=180)
@@ -42,6 +44,8 @@ class TrafficObservation(EventMetadata):
         source_record_id: str = "",
         confidence: float = 1.0,
         available_at: datetime | None = None,
+        dataset_id: str = "unspecified",
+        mode: str = "unspecified",
     ) -> TrafficObservation:
         return cls(
             event_id=deterministic_event_id(
@@ -50,6 +54,8 @@ class TrafficObservation(EventMetadata):
                 event_time=event_time,
                 source_record_id=source_record_id,
             ),
+            dataset_id=dataset_id,
+            mode=mode,
             road_id=road_id,
             city=city,
             event_time=event_time,

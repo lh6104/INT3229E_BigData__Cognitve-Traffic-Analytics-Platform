@@ -101,6 +101,8 @@ def normalize_traffic(payload: dict[str, Any]) -> TrafficObservation:
     event_time = source_timestamp(payload.get("event_time") or payload.get("timestamp"))
     ingested_at = source_timestamp(payload.get("ingested_at") or datetime.now(UTC))
     return TrafficObservation.create(
+        dataset_id=str(payload.get("dataset_id", "unspecified")),
+        mode=str(payload.get("mode", "unspecified")),
         road_id=str(payload.get("road_id") or payload.get("segment_id") or ""),
         city=str(payload["city"]).lower(),
         event_time=event_time,

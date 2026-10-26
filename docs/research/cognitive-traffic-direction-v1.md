@@ -1,202 +1,152 @@
-# Cognitive Traffic: định hướng nghiên cứu sản phẩm và dữ liệu
+# Cognitive Traffic: product and data research direction
 
-- Phiên bản: 0.2 — 2026-10-26; đã cập nhật ràng buộc 12 điểm MVP của người dùng.
-- Yêu cầu để triển khai: [Cognitive Traffic MVP requirements v1](../requirements/cognitive-traffic-mvp-v1.md). Khi phạm vi khác nhau, bản yêu cầu này được ưu tiên.
-- Trạng thái: hướng sản phẩm đã được người dùng chọn; phạm vi thử nghiệm và tiêu chí dưới đây là đề xuất nghiên cứu.
-- Người dùng chính: người giám sát giao thông. Người dùng phụ: người cần chọn thời điểm và tuyến di chuyển.
-- Mục tiêu kỹ thuật: năng lực Data Engineering thể hiện qua dữ liệu đáng tin, replay, kết hợp nguồn đúng thời điểm và đánh giá kết quả sử dụng.
-- Ranh giới bằng chứng: đã đọc code/config và nghiên cứu tài liệu; chưa xác minh runtime, nguồn camera, độ phủ thực địa hoặc hiệu quả mô hình. Tài liệu này chưa phải implementation plan.
+Version 0.3, canonical English edition, 2026-10-26. The user selected this product direction; experimental scope and criteria remain research proposals. [MVP requirements](../requirements/cognitive-traffic-mvp-v1.md) take precedence on scope. Operators are primary, travelers choosing routes/departures secondary. The engineering objective is reliable data, replay, point-in-time source fusion and measurable decision outcomes.
 
-## 1. Câu hỏi sản phẩm
+Evidence boundary: the original research inspected code/configuration and references, not runtime, camera sources, field coverage or model effectiveness. Code-state findings below describe that historical inspection and may differ from subsequent implementation. This is not an implementation plan. The complete historical edition is retained in Git at `43ac84e62ec06a0a92429d1db5d87ca056f6b804`.
 
-Hệ thống cần trả lời: đoạn đường nào đang bất thường, có thể xấu đi trong 15 phút tới không, bằng chứng nào hỗ trợ nhận định, và dữ liệu đáng tin đến đâu?
+## 1. Product questions
 
-Người giám sát dùng câu trả lời để ưu tiên kiểm tra và xử lý cảnh báo. Người đi đường dùng cùng trạng thái và dự báo để so sánh các tuyến/giờ xuất phát trong vùng đã quan sát được.
+Which road point is unusual, might it worsen in 15 minutes, what supports that conclusion and how trustworthy is the data? Operators prioritize checks/alerts; travelers compare supported routes/departures using the same state and forecasts.
 
-| Người dùng | Quyết định cần hỗ trợ | Đầu ra tối thiểu |
+| User | Decision | Minimum evidence |
 |---|---|---|
-| Người giám sát | Đoạn nào cần xem trước? | Danh sách cảnh báo theo mức ảnh hưởng và độ mới; hiển thị riêng mức tin cậy |
-| Người giám sát | Bất thường có thật hay do nguồn lỗi? | Lịch sử tốc độ, baseline cùng khung giờ, tình trạng nguồn và bằng chứng liên quan |
-| Người giám sát | Có đang phục hồi hoặc lan sang đoạn tiếp theo? | Diễn biến theo thời gian và dự báo ngắn hạn; chỉ đánh giá lan truyền khi có topology và dữ liệu phù hợp |
-| Người đi đường | Nên chọn tuyến nào trong các tuyến được hỗ trợ? | Thời gian hành trình ước tính, độ phủ, độ mới và cảnh báo trên tuyến |
-| Người đi đường | Đi ngay hay chờ thêm? | So sánh thời gian xuất phát, thời gian trên đường, thời gian đến và mức bất định |
+| Operator | What needs attention first? | Alerts by impact/freshness, confidence shown separately |
+| Operator | Real anomaly or broken source? | Speed history, same-time baseline, source state and evidence |
+| Operator | Recovery or downstream propagation? | Trend/short forecast; propagation only with suitable topology/data |
+| Traveler | Which supported route? | Estimated travel time, coverage, freshness and route alerts, subject to ETA gates |
+| Traveler | Leave now or wait? | Departure time, time on road, arrival time and uncertainty |
 
-Không đồng nhất phát hiện bất thường với xác định nguyên nhân. Mưa và một tin tai nạn gần đó là bằng chứng bối cảnh; chưa đủ chứng minh nguyên nhân gây ùn tắc.
+Anomaly detection does not identify cause. Rain and a nearby accident story are context, not proof of congestion causality.
 
-## 2. Những gì checkout hiện tại hỗ trợ và còn thiếu
+## 2. Historical checkout capabilities and gaps
 
-Các nguồn dưới đây là đường dẫn tương đối trong repo, phản ánh working tree khi nghiên cứu; nhiều thay đổi cấu trúc chưa được commit.
-
-| Bằng chứng code | Nhận định có giới hạn | Hệ quả nghiên cứu |
+| Source | Bounded finding at research time | Implication |
 |---|---|---|
-| [`configs/sources.yaml`](../../configs/sources.yaml) | Có 12 anchor rải ở Hà Nội và TP.HCM; danh sách không mô tả một tuyến liên tục | Giữ nguyên 12 điểm trong MVP, đo coverage tại điểm; không suy từ số anchor ra độ phủ tuyến |
-| [`ingestion/traffic.py`](../../src/cognitive_traffic/ingestion/traffic.py) | Gán ID anchor cho phản hồi TomTom; giữ provider payload ở raw event | Kiểm tra segment thực nhận, hướng đường và trùng segment giữa các anchor |
-| [`ingestion/news.py`](../../src/cognitive_traffic/ingestion/news.py) | RSS có title/summary/URL; road chưa match, loại `other`, severity/confidence bằng 0 | Cần extraction, geocoding, dedup và thời gian hiệu lực trước khi dùng làm bằng chứng |
-| [`forecasting/features/traffic.py`](../../src/cognitive_traffic/forecasting/features/traffic.py) | Builder Python hỗ trợ lịch sử traffic, weather, event và neighbor | Có nền tảng thử nghiệm feature; cần xác minh freshness và tương đương offline/online |
-| [`streaming/processors.py`](../../src/cognitive_traffic/streaming/processors.py) | SQL Flink hiện ghi weather/neighbor là NULL, event severity là 0 | Kết hợp nguồn trong luồng production vẫn là khoảng trống ở code đã đọc |
-| [`forecasting/training.py`](../../src/cognitive_traffic/forecasting/training.py) | Có walk-forward cho baseline/p50; pinball loss của quantile cuối tính trên training window | Cần đánh giá quantile ngoài mẫu trước khi công bố độ tin cậy |
-| [`api/main.py`](../../src/cognitive_traffic/api/main.py) | Có operational read cho traffic, forecast, hotspot và alert; chưa có route/departure endpoint | Luồng tư vấn di chuyển là phần mở rộng được đề xuất |
-| [`infra/postgres/schema.sql`](../../infra/postgres/schema.sql) | Bảng roads có geometry nhưng chưa có hợp đồng directed segment, chiều dài và membership tuyến; observation table chưa lưu `available_at` | Cần road mapping và nguồn lịch sử point-in-time; chưa thể lấy API store làm đầy đủ lịch sử khả dụng |
+| [Point config](../../configs/sources.yaml) | Twelve Hanoi/HCMC anchors, no continuous route | Preserve 12 points; point count is not route coverage |
+| [Traffic ingestion](../../src/cognitive_traffic/ingestion/traffic.py) | Assigns anchor ID to TomTom response and retains raw payload | Verify actual provider segment/direction and shared-segment anchors |
+| [News ingestion](../../src/cognitive_traffic/ingestion/news.py) | Title/summary/URL, unmatched road, other event type, zero severity/confidence | Extract/geocode/dedup/expire before treating as evidence |
+| [Python features](../../src/cognitive_traffic/forecasting/features/traffic.py) | Traffic/weather/event/neighbor builders | Validate freshness and offline/online parity |
+| [Stream processors](../../src/cognitive_traffic/streaming/processors.py) | Flink SQL weather/neighbor NULL, event severity zero | Source fusion was not established in that stream path |
+| [Training helpers](../../src/cognitive_traffic/forecasting/training.py) | Walk-forward baselines/p50; final quantile pinball on training window | Require held-out quantile evaluation before uncertainty claims |
+| [API](../../src/cognitive_traffic/api/main.py) | Traffic/forecast/hotspot/alert reads, no departure/route endpoint | Travel advice remains an extension |
+| [Database schema](../../infra/postgres/schema.sql) | Roads geometry, but no directed-length/membership contract; no observation available_at in inspected version | Mapping and historical availability cannot be inferred from the old read store |
 
-TomTom Flow Segment Data mô tả đoạn gần tọa độ truy vấn, có travel time, confidence, closure và shape. Shape có thể dịch theo zoom để hiển thị; không dùng shape này như ground truth hình học duy nhất. Cần lưu phản hồi gốc trong giới hạn quyền sử dụng và phiên bản ánh xạ. [Tài liệu TomTom](https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/flow-segment-data).
+TomTom Flow Segment Data describes the segment nearest the queried coordinate, travel time, confidence, closure and shape. Display shape may shift with zoom; it is not sole geometric ground truth. Preserve raw response within rights/retention and version mappings. [TomTom contract](https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/flow-segment-data).
 
-## 3. Phạm vi pilot được đề xuất
+## 3. Pilot scope
 
-- Giữ đúng 12 điểm hiện tại: 6 Hà Nội và 6 TP.HCM. Mở rộng điểm/hành lang là giai đoạn sau MVP.
-- Tất cả 12 điểm có trạng thái nguồn và giao thông, lịch sử, cảnh báo và dự báo khi đủ dữ liệu.
-- Luồng tuyến giới hạn ở template hợp lệ được ánh xạ với các điểm hiện có. Bản MVP bắt buộc thể hiện tình trạng tại các điểm quan sát; ETA toàn tuyến và xếp hạng nhanh nhất phụ thuộc gate coverage/ground truth ở mục 5.
-- Có thể so hai candidate route cùng điểm đi–đến ở một thành phố nếu hình học và hướng đi đã được kiểm tra. Đây là nghiên cứu template trong phạm vi 12 điểm, không phải lý do thêm điểm.
-- Chọn một loại phương tiện trước khi nghiệm thu tuyến; car là giả định nghiên cứu ban đầu. Xe máy cần kiểm tra riêng quyền đi đường, kiểu giao thông và dữ liệu đại diện.
-- Forecast 15 phút là mốc chính; 60 phút hỗ trợ so thời điểm tại điểm và được đánh giá riêng. Phục vụ baseline có nhãn khi chưa đủ bằng chứng cho model học máy. Horizon 240 phút chưa là điều kiện nghiệm thu pilot.
-- CV là thử nghiệm bổ sung với một góc camera cố định; chỉ đưa vào đường đi chính của sản phẩm sau khi đo được giá trị.
+Keep six existing points in each city. All 12 need source/traffic state, history, alerts and eligible forecasts. Route templates use existing points and valid continuous geometry/direction; point-state display is mandatory while whole-route ETA/fastest ranking requires coverage/ground truth gates. Two same-OD candidates in one city are conditional on geometry verification, not permission to add points. Start with car mode; motorcycle access, traffic behavior and representative data require separate validation.
 
-Khảo sát 12 điểm đã chọn: geometry/hướng đường, quyền lưu dữ liệu, coverage theo đoạn và thời gian, nguồn kiểm chứng, chi phí polling, video nếu có. Dùng kết quả để chọn case study và template tuyến; giữ cả 12 điểm trong MVP. Tài liệu này chưa khẳng định thành phố nào có độ phủ tốt hơn.
++15 is primary; evaluate +60 separately for departure support. Serve a labelled baseline when learned forecasting lacks evidence. +240 is outside pilot acceptance. CV is a supplementary single-fixed-camera experiment and joins the core only after measured value.
 
-## 4. Chuỗi năng lực “cognitive”
+Survey all points for geometry/direction, storage rights, segment/time coverage, verification sources, polling cost and optional video. Select case study/templates from evidence; do not assume one city has better coverage.
+
+## 4. The cognitive capability chain
 
 ```mermaid
 flowchart LR
-    A[Traffic và weather] --> D[Observation có thời gian và chất lượng]
-    B[RSS: sự kiện có bằng chứng] --> D
-    C[CV tùy chọn: số đếm và trạng thái ROI] --> D
-    D --> E[Trạng thái đoạn đường và baseline]
-    E --> F[Phát hiện bất thường và dự báo]
-    F --> G[Ưu tiên kiểm tra cho người giám sát]
-    F --> H[So sánh tuyến và giờ xuất phát]
-    G --> I[Xác nhận và outcome]
+    A[Traffic and weather] --> D[Timed quality-labelled observation]
+    B[Evidence-backed RSS events] --> D
+    C[Optional CV counts and ROI state] --> D
+    D --> E[Road state and baseline]
+    E --> F[Anomaly detection and forecast]
+    F --> G[Operator inspection priority]
+    F --> H[Departure and template comparison]
+    G --> I[Confirmation and outcomes]
     H --> I
-    I --> J[Đánh giá chất lượng và cải thiện]
+    I --> J[Evaluation and improvement]
 ```
 
-### Quan sát và đánh giá chất lượng
+Separate traffic state, source state and inference confidence. An outage does not mean free flow; uncertain severe events may deserve inspection. Distinguish observed/stale/missing/unsupported/fetch_error; observed zero requires an actual zero measurement. Freshness uses real cadence/delay, not just API response time.
 
-Tách ba chiều: tình trạng giao thông, tình trạng nguồn và mức tin cậy suy luận. Nguồn mất dữ liệu không tạo trạng thái “đường thông”; cảnh báo nghiêm trọng nhưng thiếu chắc chắn vẫn cần hiện để người giám sát kiểm tra.
+Start with segment/time-of-day/day-type speed or travel-time baselines, sudden drops and persistence to reduce flapping. A candidate→active→resolved state machine is separate from operator confirmation. Evaluate event-level labels with onset/end, location, verification source, confidence and observability; consecutive polls are not new incidents.
 
-Phân biệt observed, stale, missing, unsupported và fetch_error; chỉ công bố observed_zero khi nguồn thực sự đo được bằng 0. Freshness dựa trên lịch lấy mẫu và độ trễ thực đo, không dựa riêng vào thời gian API trả lời.
+For RSS: filter useful articles, extract event type/location/direction/occurrence/expiry, then deduplicate articles about the same event. Publication is not incident time. Retain ambiguous/unmatched status, evidence spans and URLs. Compare rules against structured extraction; choose complexity only for labelled-set improvement within cost.
 
-### Hiểu bất thường và bối cảnh
+Compare persistence, seasonal baselines and LightGBM on common temporal folds and peak/rain/missing/road slices. Separate speed quality, alert quality and uncertainty quality. Test out-of-sample p10–p90 coverage/width; quantile names do not prove calibration. Time-series conformal methods are later research with temporal dependence/shift considered. [ICML research](https://proceedings.mlr.press/v162/zaffran22a.html).
 
-Baseline đầu tiên: tốc độ hoặc travel time theo đoạn đường, khung giờ, loại ngày; thêm mức giảm đột ngột và yêu cầu kéo dài để giảm cảnh báo chập chờn. Một state machine nhỏ quản lý candidate → active → resolved; xác nhận của người giám sát là thuộc tính riêng.
+## 5. Route and departure research
 
-Đo cảnh báo ở cấp sự kiện sau khi gộp các tín hiệu liên tiếp. Nhãn gồm thời điểm bắt đầu/kết thúc, vị trí, nguồn xác nhận, mức chắc chắn và khả năng quan sát. Tránh tính mỗi poll liên tiếp thành một incident mới.
+### Verified templates first
 
-Với RSS, nghiên cứu lần lượt: lọc tin có ích → loại sự kiện → vị trí/hướng đường → thời điểm xảy ra và hết hiệu lực → gộp nhiều bài cùng sự kiện. Publication time không mặc nhiên là incident time. Giữ trạng thái ambiguous/unmatched, evidence span và URL. Có thể so rules với một bộ trích xuất có cấu trúc; chỉ chọn phương pháp phức tạp hơn khi cải thiện tập nhãn và chi phí phù hợp.
+Validate two candidates for continuity, direction, vehicle access and turn restrictions using existing points. Geometry plus observed-point state can ship before full-edge travel times. ETA eligibility requires ordered directed segments, lengths and network/mapping version; an anchor/street name is not a routable edge.
 
-### Dự báo và biết giới hạn
+OSRM can supply candidate geometry/alternatives, whose availability is not guaranteed. Distinguish engine ETA from project-derived ETA. [OSRM service](https://project-osrm.org/docs/v5.24.0/api/#route-service). A new engine is unnecessary for fixed pilot templates. If arbitrary-OD demand is established, evaluate OSRM/Valhalla vehicle profile/mapping/update cost. Valhalla date_time/time-dependent routing still needs suitable traffic input. [Valhalla route API](https://valhalla.github.io/valhalla/api/route/api-reference/), [historical traffic](https://valhalla.github.io/valhalla/concepts/historical-traffic/).
 
-So persistence, seasonal baseline và LightGBM trên các fold thời gian như nhau. Đánh giá cả giờ cao điểm, ngày mưa, dữ liệu thiếu và đoạn đường khác nhau. Tách chất lượng dự báo tốc độ, chất lượng cảnh báo và chất lượng khoảng bất định.
+### Arrival at each segment matters
 
-Kiểm tra coverage thực nghiệm và độ rộng p10–p90 ngoài mẫu; không coi tên quantile là chứng nhận calibration. Conformal cho chuỗi thời gian là hướng nghiên cứu sau bước này, có xét phụ thuộc thời gian và distribution shift. [Nghiên cứu ICML](https://proceedings.mlr.press/v162/zaffran22a.html).
+The next entry time is previous entry plus traversal time. Use the speed/travel forecast at expected arrival, including intersection delay if labels require it. Departure-time snapshot speed is a baseline only. Do not replace zero/closure with arbitrary small speed to manufacture finite ETA. Distinguish temporary congestion, prohibited travel and unobserved sections; use declared fallback or reject recommendation eligibility.
 
-## 5. Tư vấn tuyến và thời điểm: phạm vi đủ dùng
+Segment speed intervals do not directly sum into route travel-time intervals. Account for transformation and dependence, preferably route-level residuals on observed trips or an evaluated correlated simulation. Before validation label a range descriptive, not calibrated confidence.
 
-### Bắt đầu với tuyến định nghĩa sẵn
+Report fresh-data length coverage and bottleneck coverage separately: a high overall percentage can miss the decisive junction. If plausible missing-section assumptions change ranking, report insufficient evidence.
 
-Nghiên cứu hai candidate route đã kiểm tra tính liên tục, hướng đi, loại phương tiện và hạn chế rẽ, sử dụng các điểm hiện có. MVP có thể hiển thị route geometry và tình trạng các điểm quan sát mà chưa có full-edge travel time. Để vượt gate ETA, mỗi route cần danh sách directed segment có thứ tự, chiều dài và network/mapping version. Một anchor hoặc một tên đường chưa phải một edge có thể định tuyến.
+### Departure objectives
 
-OSRM có thể tạo candidate geometry và alternatives, nhưng availability của alternatives không được bảo đảm. ETA của engine cần được phân biệt với ETA từ dữ liệu/mô hình dự án. [OSRM Route Service](https://project-osrm.org/docs/v5.24.0/api/#route-service).
+Begin with now versus +15; add times only inside evaluated horizons. At common `t0` use only data/models already available at `t0`, including future departure cases. Last-segment entry must remain inside supported prediction time; do not silently extrapolate.
 
-Chưa cần vận hành routing engine mới trong pilot với tuyến cố định. Nếu nhu cầu mở sang điểm đi–đến tự do được chứng minh, nghiên cứu OSRM/Valhalla theo vehicle profile, mapping và chi phí cập nhật. Valhalla có `date_time` và time-dependent routing, nhưng vẫn cần cung cấp traffic data phù hợp. [Valhalla API](https://valhalla.github.io/valhalla/api/route/api-reference/), [historical traffic](https://valhalla.github.io/valhalla/concepts/historical-traffic/).
-
-### ETA phải phụ thuộc thời điểm đến từng đoạn
-
-Với route có các đoạn nối tiếp, thời điểm vào đoạn sau bằng thời điểm vào đoạn trước cộng thời gian đi đoạn trước. Dùng tốc độ/travel time dự báo tại thời điểm xe dự kiến đến đoạn đó, kèm thời gian chờ nút giao nếu nguồn/nhãn yêu cầu. Một snapshot tốc độ tại giờ xuất phát chỉ là baseline để so sánh.
-
-Không chuyển speed = 0 hoặc closure thành ETA hữu hạn bằng cách thay bằng một tốc độ nhỏ tùy ý. Phải phân biệt tắc tạm thời, cấm đi và không có đo đạc; đoạn thiếu dữ liệu dùng fallback được ghi rõ hoặc không đủ điều kiện khuyến nghị.
-
-Khoảng dự báo tốc độ từng đoạn không cộng trực tiếp thành khoảng dự báo travel time tuyến. Cần tính chuyển đổi và phụ thuộc giữa các đoạn; ưu tiên route-level residual trên hành trình đã quan sát nếu đủ dữ liệu, hoặc đánh giá một phương pháp mô phỏng có xét tương quan. Trước khi kiểm chứng, chỉ hiển thị range mô tả hoặc chỉ số bất định với nhãn phù hợp, chưa gọi là khoảng tin cậy đã hiệu chuẩn.
-
-Coverage báo theo chiều dài đoạn có dữ liệu đủ mới, đồng thời kiểm tra riêng bottleneck quan trọng. Một tuyến có coverage cao vẫn có thể thiếu đúng nút quyết định ETA. Nếu ranking thay đổi khi thay các giả định hợp lý cho đoạn thiếu, trả về “chưa đủ dữ liệu để phân biệt”.
-
-### Chọn giờ xuất phát theo mục tiêu người dùng
-
-So đi ngay với đi sau 15 phút trước; thêm các mốc khác khi horizon đã được đánh giá. Toàn bộ phép so tại thời điểm `t0` chỉ dùng dữ liệu/model đã khả dụng ở `t0`, kể cả khi departure ở tương lai. Đoạn cuối phải nằm trong vùng thời gian dự báo được hỗ trợ; không ngoại suy im lặng.
-
-| Mục tiêu | Đại lượng so sánh |
+| Objective | Comparison |
 |---|---|
-| Đến sớm nhất | Thời điểm đến = giờ xuất phát + thời gian hành trình |
-| Ít thời gian trên đường | Thời gian hành trình; hiển thị thêm thời gian chờ trước xuất phát |
-| Đến trước hạn | Khả năng đến đúng hạn nếu đã được kiểm chứng; nếu chưa thì hiển thị ETA và giới hạn |
+| Earliest arrival | Departure time + journey time |
+| Least time on road | Journey time, with predeparture waiting shown separately |
+| Arrive before deadline | Validated on-time probability; otherwise ETA and limits |
 
-Đi sau có thể ít phút trên đường nhưng đến muộn hơn. UI phải trình bày rõ hai kết quả này. Nếu lợi ích giữa hai lựa chọn nhỏ hơn sai số thực nghiệm, hiển thị tương đương thay vì khẳng định tuyến/giờ tối ưu.
+Leaving later may reduce travel minutes yet arrive later. Show both. If benefit is smaller than empirical error, show equivalence rather than optimality. FHWA percentile/buffer/planning-time measures can guide reliability features, but empirical percentiles need sufficient matching route/time data. [FHWA report](https://ops.fhwa.dot.gov/publications/tt_reliability/ttr_report.htm).
 
-FHWA dùng percentile travel time và buffer/planning time để mô tả độ ổn định hành trình. Đây là gợi ý chỉ số sản phẩm; percentile thực nghiệm cần đủ dữ liệu đúng route và khung giờ. [FHWA Travel Time Reliability](https://ops.fhwa.dot.gov/publications/tt_reliability/ttr_report.htm).
+## 6. CV as an additional measurement source
 
-## 6. Computer vision như nguồn đo bổ sung
+Initial experiment: permitted fixed-camera clip→pretrained detector→tracker→directional line crossing/ROI→window aggregation. Explore live streaming only after lawful clips.
 
-Thử nghiệm đầu: một camera cố định → detector pretrained → tracker → đếm qua vạch theo hướng và quan sát ROI → tổng hợp theo cửa sổ. Dùng clip được phép sử dụng trước khi nghiên cứu live stream.
+- Flow is line crossings per time window, by direction/class only when evaluated.
+- ROI count is vehicles present, not vehicles/km density.
+- Stationary fraction needs calibrated track-stop thresholds; pixel motion is not km/h.
+- Queue state is region/ordinal based; meters need geometry calibration/ground truth.
+- Offline camera, occlusion or changed viewpoint yields missingness, not zero.
 
-- Flow: số xe qua vạch trên cửa sổ thời gian, theo hướng và nhóm phương tiện nếu đã kiểm chứng.
-- ROI count: số xe hiện diện trong vùng quan sát; chưa phải mật độ xe/km.
-- Stationary fraction: tỷ lệ track dừng theo ngưỡng đã hiệu chuẩn; không dùng chuyển động pixel như tốc độ km/h.
-- Queue state: mức hàng chờ theo vùng hoặc nhãn ordinal; chỉ dùng mét khi có calibration/ground truth hình học.
-- Camera quality: camera offline, che khuất, thay đổi góc nhìn; các trạng thái này tạo missingness thay vì count = 0.
+DeepStream documents ROI/line/direction primitives; it is a conceptual reference, not an adopted dependency. [NVIDIA analytics](https://docs.nvidia.com/metropolis/deepstream/9.1/text/DS_plugin_gst-nvdsanalytics.html). AI City 2021 counts movements and evaluates error/efficiency but car/truck coverage does not establish motorcycle support. Local evaluation needs density, occlusion, light/night and rain conditions for each product claim. [AI City evaluation](https://www.aicitychallenge.org/2021-data-and-evaluation/).
 
-ROI/line crossing/direction tracking là các primitive đã được tài liệu hóa; đọc DeepStream để tham khảo cách tổ chức bài toán, chưa chọn nó làm dependency. [NVIDIA analytics](https://docs.nvidia.com/metropolis/deepstream/9.1/text/DS_plugin_gst-nvdsanalytics.html).
+Claim forecast improvement only with colocated, direction/time-aligned camera and traffic ground truth. Foreign benchmark video establishes a standalone CV pipeline, not Vietnamese pilot integration.
 
-AI City cung cấp bài toán đếm theo chuyển động và đánh giá cả sai số lẫn hiệu suất. Track 2021 chỉ xét car/truck; benchmark này chưa xác nhận khả năng đếm xe máy ở Việt Nam. Tập đánh giá địa phương cần có nhiều mức đông xe, che khuất, sáng/tối và mưa nếu sản phẩm tuyên bố hỗ trợ các điều kiện đó. [AI City Data and Evaluation](https://www.aicitychallenge.org/2021-data-and-evaluation/).
+## 7. Data Engineering boundaries
 
-Chỉ kết luận CV cải thiện forecasting khi camera và traffic ground truth trùng vị trí, hướng và thời gian. Nếu chỉ có video benchmark nước ngoài, kết quả là bằng chứng pipeline CV riêng; chưa là bằng chứng tích hợp pilot Việt Nam.
-
-## 7. Phần Data Engineering cần làm nổi bật
-
-| Hợp đồng/ranh giới | Nội dung cần nghiên cứu và nghiệm thu |
+| Contract | Required content |
 |---|---|
-| Network registry | Directed segment, geometry, chiều dài, vehicle access, route membership; mapping anchor/provider/camera có hiệu lực theo thời gian |
-| Observation | Source identity, event/ingestion/availability time, measurement window, đơn vị, provenance, quality state; count/flow/speed khác schema hoặc loại measurement |
-| Context event | Incident time nếu biết, publication time, first-seen/available time, expiry, evidence reference, dedup và match confidence |
-| Feature snapshot | Prediction time, feature version, input IDs, freshness, missingness; truy lại đúng dữ liệu biết được khi ra quyết định |
-| CV artifact | Video reference/checksum, time range, camera clock, ROI/calibration/model version, processing attempt; phân biệt observation time và giờ xử lý replay |
-| Decision/outcome | Forecast/alert/recommendation ID, model/rules version, candidate routes, departure objective, evidence và kết quả xác nhận |
+| Network registry | Directed segment/geometry/length/access/route membership; time-valid anchor/provider/camera mapping |
+| Observation | Source identity, event/ingestion/availability time, window, units, provenance/quality; distinguish count/flow/speed schemas |
+| Context event | Occurrence if known, publication, first-seen/availability, expiry, evidence, dedup/match confidence |
+| Feature snapshot | Prediction time/version/input IDs/freshness/missingness; reconstruct information known at decision |
+| CV artifact | Video reference/checksum/range/camera clock, ROI/calibration/model version/attempt; observation time differs from replay processing |
+| Decision/outcome | Forecast/alert/recommendation ID, model/rule version, candidates, departure objective, evidence and confirmation |
 
-Video và artifact lưu object storage; Kafka mang references và observation tổng hợp. Giới hạn lưu video/payload theo quyền sử dụng và ngân sách. PostgreSQL phục vụ trạng thái vận hành và truy vết quyết định; lịch sử gốc và dataset manifest nằm trong lake.
+Store video/artifacts in object storage; Kafka carries references and aggregated observations. Bound retention by rights/budget. PostgreSQL owns operational decision state; lake owns raw history/manifests. Reproduce old decisions with then-available data/versions separately from new-logic reprocessing. Source/window/version idempotency prevents retry recounting. Preserve result versions for new video models and select serving version explicitly. Demonstrate offline/online parity on shared snapshots and lateness policy.
 
-Replay phải phân biệt hai chế độ: tái hiện đúng quyết định lúc đó bằng dữ liệu/version đã khả dụng; và xử lý lại lịch sử bằng model/rules mới để nghiên cứu. Không trộn kết quả reprocessing với lịch sử điều hệ thống đã biết.
+Every demo decision must trace recommendation/alert→snapshot→observations→payload/video window. This demonstrates engineering more clearly than service count.
 
-Đảm bảo idempotency theo nguồn/cửa sổ/version; không đếm lại observation do retry. Khi cùng video được xử lý bằng model mới, giữ phiên bản kết quả và chọn version phục vụ rõ ràng. So offline/online bằng cùng input snapshot, feature definition và policy lateness.
+## 8. Research order and gates
 
-Mỗi quyết định demo phải truy ngược được: recommendation/alert → feature snapshot → observations → source payload hoặc video window. Đây là điểm thể hiện năng lực Data Engineering rõ hơn số lượng dịch vụ.
-
-## 8. Thứ tự nghiên cứu và điều kiện chuyển bước
-
-| Bước | Câu hỏi | Artifact đầu ra | Điều kiện chuyển bước |
+| Step | Question | Artifact | Exit gate |
 |---|---|---|---|
-| R0: nguồn và pilot | 12 điểm hiện tại đo được gì và hỗ trợ template tuyến nào? | Coverage matrix của 12 điểm, network mapping, source-use register và cost estimate | Xác nhận quyền sử dụng; hiển thị rõ điểm thiếu và các giới hạn tuyến; có phương án ground truth. Không thêm/đổi điểm để đạt gate |
-| R1: baseline giám sát | Phát hiện bất thường tốt hơn threshold đơn giản không? | Event label set, baseline report, các case outage/recovery | Quy tắc cố định trước test; đo false alarms và latency trên tập tách biệt; nguồn lỗi không bị hiểu là đường thông |
-| R2: dự báo ngắn hạn | Có thêm thời gian cảnh báo so với persistence/seasonal không? | Walk-forward report theo horizon và slice, calibration report | Có cải thiện hữu ích trên các fold; không dựa vào train metrics; xử lý dữ liệu thiếu minh bạch |
-| R3: tuyến và departure | 12 điểm hỗ trợ tư vấn gì; có đủ cơ sở cho ETA/ranking không? | Template tuyến, so trạng thái và giờ đi tại điểm, báo cáo eligibility ETA và replay tại `t0` | MVP cung cấp so sánh tại điểm và lý do thiếu coverage; chỉ kích hoạt ETA khi mapping, coverage và validation đạt policy |
-| R4: context | Weather/RSS có cải thiện hoặc xác nhận sự kiện không? | Extraction/geocoding report và ablation từng nhóm feature | Đánh giá cùng cohort; dữ liệu có sẵn đúng thời điểm; nếu chỉ xác nhận muộn thì dùng cho review thay vì dự báo sớm |
-| R5: CV | Camera có giảm điểm mù hoặc cải thiện quyết định không? | Count/queue label set, CV accuracy/runtime report, paired ablation nếu đủ dữ liệu | Có ích với bài toán pilot và nằm trong ngân sách; nếu thiếu paired data, giữ kết quả nghiên cứu riêng |
+| R0 sources/pilot | What do the 12 points observe and which templates are supported? | Coverage matrix, network mapping, rights register, cost estimate | Rights, explicit missing points/route limits, ground-truth plan; no added/replaced points |
+| R1 monitoring baseline | Better than a simple threshold? | Event labels, baseline and outage/recovery cases | Freeze rules before separate test; measure false alarms/latency; failure is not free flow |
+| R2 short forecasting | Useful lead time beyond persistence/seasonal? | Horizon/slice walk-forward and calibration report | Useful fold-level improvement, no train-metric claims, transparent missingness |
+| R3 departure/routes | What advice is possible; is ETA/ranking justified? | Templates, point comparison, ETA eligibility and t0 replay | Mandatory point evidence/reasons; ETA only after mapping/coverage/validation |
+| R4 context | Does weather/RSS improve or corroborate? | Extraction/geocoding, feature ablation | Same cohort and availability; late corroboration belongs in review, not early prediction |
+| R5 CV | Fewer blind spots/better decisions? | Count/queue labels, accuracy/runtime, paired ablation if eligible | Useful within budget; without paired data retain separate research |
 
-R0–R3 là đường chính để phục vụ hai nhóm người dùng. R4–R5 là phần bổ sung có điều kiện; nguồn camera có thể được khảo sát sớm ở R0 để tránh thu thập trễ.
+R0–R3 serve both users; R4–R5 are conditional. Camera discovery can start in R0. Preregister split, evaluation unit, baseline, threshold, cadence/freshness and compute budget before each test. This document establishes no measured thresholds; never tune on test then claim success.
 
-Trước mỗi test, chốt dataset split, đơn vị đánh giá, baseline, ngưỡng chấp nhận, sampling cadence, freshness và ngân sách tính toán. Các giá trị này là quyết định preregistered của từng thử nghiệm, chưa được xác nhận bằng tài liệu này. Không thay ngưỡng sau khi xem test set để công bố đạt.
+## 9. Acceptance evidence to collect
 
-## 9. Bằng chứng nghiệm thu cần thu thập
+Source: directed-segment×time coverage, freshness p95, missing/error/late rates, requests and storage/compute. Alerts: event precision/recall, false alarms per labelled monitored-segment-hour, separate detection delay/warning lead time, duplication/flapping. Forecasts: horizon/slice MAE/bias, common-fold baselines, held-out coverage/width. Routes: route/departure ETA error, snapshot-baseline difference, fallback exposure and missing-data ranking sensitivity; distinguish observed/estimated ETA.
 
-- **Nguồn:** coverage theo directed segment × thời gian; freshness p95; missing/error/late rate; số request và storage/compute thực dùng.
-- **Cảnh báo:** precision/recall cấp event; false alarms trên monitored segment-hour có nhãn; detection delay và warning lead time báo riêng; số cảnh báo trùng/chập chờn.
-- **Dự báo:** MAE/bias theo horizon và slice; so baseline cùng fold/cohort; empirical coverage và interval width ngoài mẫu.
-- **Tuyến:** ETA error theo route/departure; sai khác so snapshot baseline; fallback exposure; độ nhạy ranking khi thiếu dữ liệu; phân biệt observed ETA với estimated ETA.
-- **Khuyến nghị:** regret so lựa chọn tốt nhất trong tập candidate được đánh giá offline; không gọi là tối ưu toàn mạng. Counterfactual tuyến không đi phải ghi rõ là estimated nếu không có quan sát đồng thời phù hợp.
-- **CV:** count MAE theo cửa sổ/hướng/class; queue-state precision/recall; runtime, end-to-end latency, dropped frames; lỗi theo điều kiện quay.
-- **Pipeline:** retry/replay không tạo kết quả trùng ngoài policy versioning; truy vết được nguồn; late data không thay đổi âm thầm quyết định đã phát; offline/online parity có bằng chứng.
-- **Người dùng:** kịch bản phát hiện → kiểm tra bằng chứng → xác nhận/resolution; kịch bản so hai tuyến và giờ đi; kịch bản thiếu dữ liệu. Đo khả năng hiểu cảnh báo và thời gian xác minh khi có người tham gia; chưa có user study thì ghi là walkthrough nội bộ.
+Recommendations: offline regret against best evaluated candidate, never whole-network optimality. Untraveled-route counterfactuals remain estimated without suitable simultaneous observation. CV: window/direction/class count MAE, queue precision/recall, runtime, E2E latency, dropped frames and condition slices. Pipeline: retry/replay idempotency, provenance, no silent retroactive decision changes from late data, offline/online parity.
 
-So sánh thêm nguồn bằng ablation trên cùng các hàng đủ điều kiện ở cả hai phương án và cùng policy khả dụng; báo riêng phần tăng coverage. Hai nguồn đồng ý chỉ là agreement, chưa phải independent ground truth.
+Users: detection→evidence inspection→confirmation/resolution, route/departure comparison and missing-data cases. Measure comprehension/verification time only with participants; absent a user study call it an internal walkthrough. Source ablation uses the same eligible rows/availability policy; report coverage gains separately. Agreement between sources is not independent ground truth.
 
-## 10. Quy tắc hạn chế overengineering
+## 10. Avoid overengineering
 
-1. Mỗi nguồn/model/service mới phải gắn với một quyết định người dùng và một baseline có thể đo.
-2. Tận dụng Kafka, Flink, MinIO, PostgreSQL và Airflow hiện có; schema/topic mới chỉ khi hợp đồng dữ liệu cần tách.
-3. Chưa thêm graph database cho vài tuyến/neighbor mappings; topology dạng file versioned hoặc bảng quan hệ đủ để thử nghiệm.
-4. Chưa thêm online feature store khi feature registry, snapshot và kiểm tra offline/online còn giải quyết được nhu cầu.
-5. Chỉ nghiên cứu GNN/Transformer sau khi có mạng đường và dữ liệu phù hợp, đồng thời baseline đơn giản đã được đánh giá nghiêm túc.
-6. Chưa mở rộng sang nhận diện biển số, tracking đa camera, tự điều khiển đèn, chatbot hoặc dự báo toàn thành phố trong pilot này.
-7. Thêm CV vì phép đo bổ sung; dùng kết quả thử nghiệm để quyết định có cần GPU/streaming service riêng.
+Every source/model/service needs a user decision and measurable baseline. Reuse Kafka/Flink/MinIO/PostgreSQL/Airflow; new schema/topic only for a required contract. A versioned file or relational topology is sufficient for a few templates/neighbors; no graph database yet. No feature store while registry/snapshots/parity checks suffice. GNN/Transformer requires suitable road data and rigorously evaluated simple baselines first. Exclude plates, multicamera tracking, signal control, chatbots and citywide forecasting. Add CV for a useful measurement; only measured need justifies GPU/separate streaming service.
 
-## 11. Đề xuất quyết định tiếp theo
+## 11. Next approved direction
 
-Khóa phạm vi nghiên cứu vào R0 trước: khảo sát đúng 12 điểm hiện tại, lập template tuyến dựa trên geometry hợp lệ và chọn vehicle mode cho template. Sau R0, triển khai năng lực giám sát/cảnh báo trên 12 điểm theo bản yêu cầu đã tổng hợp; route/departure dùng chung observation và forecast với gate R3. Mở rộng mạng đường là giai đoạn sau MVP.
-
-Một demo có sức thuyết phục phải cho người xem theo dõi được cùng một sự kiện: dữ liệu thay đổi → cảnh báo có bằng chứng → forecast → ảnh hưởng đến lựa chọn tuyến/giờ đi → outcome → replay giải thích lại quyết định.
+Start R0 with the exact 12 points, lawful source survey, valid route geometry and template vehicle mode. Then implement monitoring/alerts under the requirements, with departure/routes sharing observations/forecasts and R3 gates. Network expansion is post-MVP. A convincing demo follows one event through changed data→evidenced alert→forecast→departure/template consequence→outcome→explanatory replay; until each stage is verified label the limits.

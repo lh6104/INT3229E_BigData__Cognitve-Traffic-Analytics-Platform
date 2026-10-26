@@ -9,24 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppMonitoringRouteImport } from './routes/_app/monitoring'
-import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppForecastRouteImport } from './routes/_app/forecast'
+import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
+import { Route as AppMonitoringRouteImport } from './routes/_app/monitoring'
 
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppMonitoringRoute = AppMonitoringRouteImport.update({
-  id: '/monitoring',
-  path: '/monitoring',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppForecastRoute = AppForecastRouteImport.update({
+  id: '/forecast',
+  path: '/forecast',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLiveMapRoute = AppLiveMapRouteImport.update({
@@ -34,9 +34,9 @@ const AppLiveMapRoute = AppLiveMapRouteImport.update({
   path: '/live-map',
   getParentRoute: () => AppRoute,
 } as any)
-const AppForecastRoute = AppForecastRouteImport.update({
-  id: '/forecast',
-  path: '/forecast',
+const AppMonitoringRoute = AppMonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -81,13 +81,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -95,11 +88,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/monitoring': {
-      id: '/_app/monitoring'
-      path: '/monitoring'
-      fullPath: '/monitoring'
-      preLoaderRoute: typeof AppMonitoringRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/forecast': {
+      id: '/_app/forecast'
+      path: '/forecast'
+      fullPath: '/forecast'
+      preLoaderRoute: typeof AppForecastRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/live-map': {
@@ -109,11 +109,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLiveMapRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/forecast': {
-      id: '/_app/forecast'
-      path: '/forecast'
-      fullPath: '/forecast'
-      preLoaderRoute: typeof AppForecastRouteImport
+    '/_app/monitoring': {
+      id: '/_app/monitoring'
+      path: '/monitoring'
+      fullPath: '/monitoring'
+      preLoaderRoute: typeof AppMonitoringRouteImport
       parentRoute: typeof AppRoute
     }
   }

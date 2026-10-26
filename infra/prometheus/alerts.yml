@@ -1,0 +1,20 @@
+groups:
+  - name: operator-journey
+    rules:
+      - alert: OperatorJourneyUnavailable
+        expr: traffic_operator_journey_success == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: traffic-api
+        annotations:
+          summary: Operator health and current traffic read path has failed for 30 seconds
+          runbook_url: docs/operations/api-unavailable.md
+      - alert: OperatorJourneyProbeMissing
+        expr: absent(traffic_operator_journey_success) or (time() - traffic_operator_journey_checked_timestamp_seconds > 30)
+        for: 30s
+        labels:
+          severity: warning
+          service: journey-probe
+        annotations:
+          summary: Journey probe is absent or stale; operator impact unknown

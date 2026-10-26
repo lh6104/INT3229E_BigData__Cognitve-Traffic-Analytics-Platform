@@ -9,6 +9,7 @@ from pathlib import Path
 import feedparser
 import yaml
 
+from cognitive_traffic.monitoring.logging import configure_logging
 from cognitive_traffic.settings import get_settings
 from cognitive_traffic.streaming.producers import ContractProducer
 from cognitive_traffic.streaming.topics import NEWS_RAW
@@ -56,6 +57,7 @@ def run_once(producer: ContractProducer, feeds: list[dict]) -> int:
 
 
 def run() -> None:
+    configure_logging()
     feeds = load_feeds(Path(os.environ.get("SOURCES_FILE", "configs/sources.yaml")))
     producer = ContractProducer(get_settings().kafka_bootstrap_servers)
     interval = int(os.environ.get("NEWS_POLL_INTERVAL_SECONDS", "600"))

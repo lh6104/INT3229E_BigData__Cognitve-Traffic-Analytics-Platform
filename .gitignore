@@ -59,3 +59,13 @@ data/
 models/
 reports/
 airflow-webserver.pid
+
+*.egg-info/
+
+frontend/.legacy-node_modules/
+frontend/test-results/
+frontend/playwright-report/
+
+frontend/.legacy-tanstack/
+
+/test-results/

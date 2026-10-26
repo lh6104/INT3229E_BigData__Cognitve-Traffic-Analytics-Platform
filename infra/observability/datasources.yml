@@ -1,0 +1,22 @@
+apiVersion: 1
+datasources:
+  - name: Traffic-Prometheus
+    uid: traffic-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    jsonData:
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+  - name: Traffic-Logs
+    uid: traffic-logs
+    type: loki
+    access: proxy
+    url: http://localhost:3100
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace_id":\s*"([a-f0-9]+)"'
+          datasourceUid: tempo
+          url: '$${__value.raw}'

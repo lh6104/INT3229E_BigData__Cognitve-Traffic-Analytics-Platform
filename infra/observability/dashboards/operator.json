@@ -1,0 +1,11 @@
+{
+  "title": "Traffic operator journey",
+  "uid": "traffic-operator",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {"id": 1, "title": "Semantic operator journey (empty measurements are valid)", "type": "stat", "datasource": {"uid": "traffic-prometheus", "type": "prometheus"}, "targets": [{"expr": "traffic_operator_journey_success"}], "gridPos": {"x": 0, "y": 0, "w": 12, "h": 6}},
+    {"id": 2, "title": "API latency with trace exemplars", "type": "timeseries", "datasource": {"uid": "traffic-prometheus", "type": "prometheus"}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le, path) (rate(traffic_api_request_seconds_bucket[5m])))", "exemplar": true}], "gridPos": {"x": 12, "y": 0, "w": 12, "h": 6}}
+  ]
+}

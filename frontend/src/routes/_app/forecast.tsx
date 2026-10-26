@@ -32,6 +32,8 @@ type Forecast = {
 };
 type Model = { model_name: string; model_version: string; feature_version: string; dataset_id: string } | null;
 
+const FORECAST_HORIZONS = [15, 60];
+
 function ForecastPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/forecast" });
@@ -46,10 +48,11 @@ function ForecastPage() {
   const { data: model } = useSWR<Model>("/models/current", apiGet, { shouldRetryOnError: false });
   const selectedRoad = roads?.find((road) => road.road_id === roadId);
   const currentRoad = current?.find((road) => road.road_id === roadId);
-  const latestByHorizon = [15, 60, 240].map((horizon) =>
+  const latestByHorizon = FORECAST_HORIZONS.map((horizon) =>
     forecasts?.find((forecast) => forecast.horizon_minutes === horizon),
   );
   const series = [...(forecasts ?? [])]
+    .filter((forecast) => FORECAST_HORIZONS.includes(forecast.horizon_minutes))
     .reverse()
     .slice(-60)
     .map((forecast) => ({
@@ -73,12 +76,12 @@ function ForecastPage() {
         </select>
       </div>
       {error && <div className="rounded-2xl bg-destructive/10 p-4 text-sm text-destructive">Forecast storage is unavailable.</div>}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Metric label="Current" value={currentRoad ? `${currentRoad.speed_kmh.toFixed(1)} km/h` : "n/a"} />
         {latestByHorizon.map((forecast, index) => (
           <Metric
-            key={[15, 60, 240][index]}
-            label={`${[15, 60, 240][index]} minute P50`}
+            key={FORECAST_HORIZONS[index]}
+            label={`${FORECAST_HORIZONS[index]} minute P50`}
             value={forecast ? `${forecast.p50_speed_kmh.toFixed(1)} km/h` : "n/a"}
             detail={forecast ? `P10 ${forecast.p10_speed_kmh.toFixed(1)} · P90 ${forecast.p90_speed_kmh.toFixed(1)}` : undefined}
           />

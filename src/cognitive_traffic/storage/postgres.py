@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
+
+from cognitive_traffic.contracts.traffic import TrafficObservation
 
 
 class TrafficRepository:
@@ -21,6 +24,80 @@ class TrafficRepository:
             cursor.execute(query, parameters)
             return list(cursor.fetchall())
 
+    def store_observation(self, event: TrafficObservation) -> str:
+        """Commit immutable history and monotonic live state in one transaction.
+
+        Kafka offsets are acknowledged only after this transaction succeeds.
+        Revalidate even model_copy/model_construct callers at the trust boundary.
+        """
+        from psycopg.types.json import Jsonb
+
+        event = TrafficObservation.model_validate(event.model_dump())
+        now = datetime.now(UTC)
+        if event.mode != "operational" or event.dataset_id != "vn-mvp-12":
+            raise ValueError("only the operational vn-mvp-12 dataset may enter live serving")
+        if max(event.event_time, event.available_at, event.ingested_at) > now:
+            raise ValueError("future observation timestamp")
+        payload = event.model_dump(mode="json")
+        with self.connection() as connection:
+            road = connection.execute(
+                "SELECT city FROM roads WHERE road_id=%s AND monitoring_enabled", (event.road_id,)
+            ).fetchone()
+            if road is None or road["city"] != event.city:
+                raise ValueError("unknown monitoring point or wrong city")
+            inserted = connection.execute(
+                """INSERT INTO traffic_observations
+                (event_id, road_id, city, event_time, ingested_at, speed_kmh,
+                 free_flow_speed_kmh, confidence, source, schema_version,
+                 dataset_id, mode, canonical_payload)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT DO NOTHING RETURNING event_id""",
+                (event.event_id, event.road_id, event.city, event.event_time, event.ingested_at,
+                 event.speed_kmh, event.free_flow_speed_kmh, event.confidence, event.source,
+                 event.schema_version, event.dataset_id, event.mode, Jsonb(payload)),
+            ).fetchone()
+            if inserted is None:
+                rows = connection.execute(
+                    "SELECT event_id, canonical_payload FROM traffic_observations WHERE event_id=%s",
+                    (event.event_id,),
+                ).fetchall()
+                if len(rows) == 1 and rows[0]["canonical_payload"] == payload:
+                    return "duplicate"
+                raise ValueError("event identity collision or inconsistent payload")
+            connection.execute(
+                """INSERT INTO traffic_current
+                  (road_id, city, event_time, speed_kmh, free_flow_speed_kmh,
+                   confidence, source, event_id, dataset_id, mode)
+                  VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                  ON CONFLICT (road_id) DO UPDATE SET
+                    city=EXCLUDED.city, event_time=EXCLUDED.event_time,
+                    speed_kmh=EXCLUDED.speed_kmh, free_flow_speed_kmh=EXCLUDED.free_flow_speed_kmh,
+                    confidence=EXCLUDED.confidence, source=EXCLUDED.source,
+                    event_id=EXCLUDED.event_id, dataset_id=EXCLUDED.dataset_id, mode=EXCLUDED.mode
+                  WHERE (EXCLUDED.event_time, EXCLUDED.event_id) >
+                        (traffic_current.event_time, COALESCE(traffic_current.event_id, ''))""",
+                (event.road_id, event.city, event.event_time, event.speed_kmh,
+                 event.free_flow_speed_kmh, event.confidence, event.source,
+                 event.event_id, event.dataset_id, event.mode),
+            )
+        return "accepted"
+
+    def monitoring_points(self, city: str | None) -> list[dict[str, Any]]:
+        return self.fetch_all(
+            """SELECT roads.road_id, roads.city, roads.name, roads.category, roads.geometry,
+                roads.anchor_lat AS latitude, roads.anchor_lon AS longitude,
+                'configured_anchor' AS coordinate_kind,
+                current.event_time, current.speed_kmh, current.free_flow_speed_kmh,
+                current.confidence, current.source, current.dataset_id, current.mode,
+                CASE WHEN current.event_time IS NULL THEN 'missing'
+                     WHEN current.event_time < now() - interval '10 minutes' THEN 'stale'
+                     ELSE 'live' END AS status
+            FROM roads LEFT JOIN traffic_current AS current ON roads.road_id=current.road_id
+                AND current.mode='operational' AND current.dataset_id='vn-mvp-12'
+            WHERE roads.monitoring_enabled AND (%s::text IS NULL OR roads.city=%s)
+            ORDER BY roads.road_id""", (city, city),
+        )
+
     def roads(self, city: str | None) -> list[dict[str, Any]]:
         return self.fetch_all(
             "SELECT road_id, city, name, category FROM roads WHERE (%s::text IS NULL OR city = %s) ORDER BY road_id",
@@ -35,7 +112,9 @@ class TrafficRepository:
                    current.free_flow_speed_kmh, current.confidence, current.source
             FROM traffic_current AS current
             JOIN roads USING (road_id)
-            WHERE (%s::text IS NULL OR current.city = %s)
+            WHERE roads.monitoring_enabled
+              AND current.mode = 'operational' AND current.dataset_id = 'vn-mvp-12'
+              AND (%s::text IS NULL OR current.city = %s)
             ORDER BY current.road_id
             """,
             (city, city),

@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS forecasts (
 );
 CREATE INDEX IF NOT EXISTS forecasts_road_target_idx ON forecasts (road_id, target_time DESC);
 
-CREATE VIEW forecast_hotspots AS
+CREATE OR REPLACE VIEW forecast_hotspots AS
 SELECT road_id, city, target_time, p50_speed_kmh, congestion_probability, model_version
 FROM forecasts
 WHERE congestion_probability >= 0.5;

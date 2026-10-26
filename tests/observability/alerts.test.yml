@@ -1,0 +1,28 @@
+rule_files:
+  - ../../infra/prometheus/alerts.yml
+evaluation_interval: 5s
+tests:
+  - interval: 5s
+    input_series:
+      - series: 'traffic_operator_journey_success{instance="journey-probe:9101",job="operator-journey"}'
+        values: '1 0 0 0 0 0 0 0 1 1'
+      - series: 'traffic_operator_journey_checked_timestamp_seconds'
+        values: '0+5x9'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: OperatorJourneyUnavailable
+        exp_alerts: []
+      - eval_time: 35s
+        alertname: OperatorJourneyUnavailable
+        exp_alerts:
+          - exp_labels:
+              instance: journey-probe:9101
+              job: operator-journey
+              severity: critical
+              service: traffic-api
+            exp_annotations:
+              summary: Operator health and current traffic read path has failed for 30 seconds
+              runbook_url: docs/operations/api-unavailable.md
+      - eval_time: 40s
+        alertname: OperatorJourneyUnavailable
+        exp_alerts: []
