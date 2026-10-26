@@ -23,7 +23,7 @@ class TrafficRepository:
 
     def roads(self, city: str | None) -> list[dict[str, Any]]:
         return self.fetch_all(
-            "SELECT road_id, city, name, category FROM roads WHERE (%s IS NULL OR city = %s) ORDER BY road_id",
+            "SELECT road_id, city, name, category FROM roads WHERE (%s::text IS NULL OR city = %s) ORDER BY road_id",
             (city, city),
         )
 
@@ -35,7 +35,7 @@ class TrafficRepository:
                    current.free_flow_speed_kmh, current.confidence, current.source
             FROM traffic_current AS current
             JOIN roads USING (road_id)
-            WHERE (%s IS NULL OR current.city = %s)
+            WHERE (%s::text IS NULL OR current.city = %s)
             ORDER BY current.road_id
             """,
             (city, city),
@@ -63,8 +63,8 @@ class TrafficRepository:
             FROM forecasts AS forecast
             LEFT JOIN prediction_outcomes AS outcome
               ON outcome.prediction_id = forecast.event_id
-            WHERE (%s IS NULL OR forecast.road_id = %s)
-              AND (%s IS NULL OR forecast.horizon_minutes = %s)
+            WHERE (%s::text IS NULL OR forecast.road_id = %s)
+              AND (%s::integer IS NULL OR forecast.horizon_minutes = %s)
             ORDER BY forecast.prediction_time DESC LIMIT 500
             """,
             (road_id, road_id, horizon, horizon),
@@ -76,7 +76,7 @@ class TrafficRepository:
             SELECT road_id, city, target_time, p50_speed_kmh,
                    congestion_probability, model_version
             FROM forecast_hotspots
-            WHERE (%s IS NULL OR city = %s)
+            WHERE (%s::text IS NULL OR city = %s)
             ORDER BY congestion_probability DESC LIMIT 50
             """,
             (city, city),
