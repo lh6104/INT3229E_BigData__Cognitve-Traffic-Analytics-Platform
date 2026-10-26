@@ -1,0 +1,10 @@
+{
+  "road_id": "HN_HK_001",
+  "city": "hanoi",
+  "event_time": "2026-08-12T08:00:00Z",
+  "ingested_at": "2026-08-12T08:00:05Z",
+  "source": "fixture",
+  "event_type": "road_work",
+  "severity": 1,
+  "confidence": 0.8
+}

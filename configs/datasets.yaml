@@ -1,0 +1,34 @@
+schema_version: "1"
+profiles:
+  - dataset_id: vn-mvp-12
+    profile_version: "1"
+    purpose: operational
+    measurement: speed
+    unit: km/h
+    source_reference: https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/flow-segment-data
+    acquisition_status: configured_unverified
+    rights_status: unverified
+  - dataset_id: metr-la
+    profile_version: "1"
+    purpose: benchmark
+    measurement: speed
+    unit: mph
+    source_reference: https://github.com/liyaguang/DCRNN
+    acquisition_status: not_acquired
+    rights_status: unverified
+  - dataset_id: ua-detrac
+    profile_version: "1"
+    purpose: benchmark
+    measurement: video
+    unit: frame
+    source_reference: https://arxiv.org/abs/1511.04136
+    acquisition_status: not_acquired
+    rights_status: unverified
+  - dataset_id: largest
+    profile_version: "1"
+    purpose: benchmark
+    measurement: flow
+    unit: source_units_unverified
+    source_reference: https://github.com/liuxu77/LargeST
+    acquisition_status: not_acquired
+    rights_status: unverified

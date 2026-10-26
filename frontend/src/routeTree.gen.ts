@@ -11,15 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppMonitoringRouteImport } from './routes/_app/monitoring'
 import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
-import { Route as AppHotspotsRouteImport } from './routes/_app/hotspots'
 import { Route as AppForecastRouteImport } from './routes/_app/forecast'
-import { Route as AppExplanationsRouteImport } from './routes/_app/explanations'
-import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
-import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
-import { Route as ApiAlertsBulkAckRouteImport } from './routes/api/alerts/bulk-ack'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -29,11 +23,6 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppMonitoringRoute = AppMonitoringRouteImport.update({
   id: '/monitoring',
@@ -45,119 +34,49 @@ const AppLiveMapRoute = AppLiveMapRouteImport.update({
   path: '/live-map',
   getParentRoute: () => AppRoute,
 } as any)
-const AppHotspotsRoute = AppHotspotsRouteImport.update({
-  id: '/hotspots',
-  path: '/hotspots',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppForecastRoute = AppForecastRouteImport.update({
   id: '/forecast',
   path: '/forecast',
   getParentRoute: () => AppRoute,
 } as any)
-const AppExplanationsRoute = AppExplanationsRouteImport.update({
-  id: '/explanations',
-  path: '/explanations',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAlertsRoute = AppAlertsRouteImport.update({
-  id: '/alerts',
-  path: '/alerts',
-  getParentRoute: () => AppRoute,
-} as any)
-const ApiAlertsBulkAckRoute = ApiAlertsBulkAckRouteImport.update({
-  id: '/api/alerts/bulk-ack',
-  path: '/api/alerts/bulk-ack',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/alerts': typeof AppAlertsRoute
-  '/dashboard': typeof AppDashboardRoute
-  '/explanations': typeof AppExplanationsRoute
   '/forecast': typeof AppForecastRoute
-  '/hotspots': typeof AppHotspotsRoute
   '/live-map': typeof AppLiveMapRoute
   '/monitoring': typeof AppMonitoringRoute
-  '/settings': typeof AppSettingsRoute
-  '/api/alerts/bulk-ack': typeof ApiAlertsBulkAckRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/alerts': typeof AppAlertsRoute
-  '/dashboard': typeof AppDashboardRoute
-  '/explanations': typeof AppExplanationsRoute
   '/forecast': typeof AppForecastRoute
-  '/hotspots': typeof AppHotspotsRoute
   '/live-map': typeof AppLiveMapRoute
   '/monitoring': typeof AppMonitoringRoute
-  '/settings': typeof AppSettingsRoute
-  '/api/alerts/bulk-ack': typeof ApiAlertsBulkAckRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
-  '/_app/alerts': typeof AppAlertsRoute
-  '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/explanations': typeof AppExplanationsRoute
   '/_app/forecast': typeof AppForecastRoute
-  '/_app/hotspots': typeof AppHotspotsRoute
   '/_app/live-map': typeof AppLiveMapRoute
   '/_app/monitoring': typeof AppMonitoringRoute
-  '/_app/settings': typeof AppSettingsRoute
-  '/api/alerts/bulk-ack': typeof ApiAlertsBulkAckRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/alerts'
-    | '/dashboard'
-    | '/explanations'
-    | '/forecast'
-    | '/hotspots'
-    | '/live-map'
-    | '/monitoring'
-    | '/settings'
-    | '/api/alerts/bulk-ack'
+  fullPaths: '/' | '/forecast' | '/live-map' | '/monitoring'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/alerts'
-    | '/dashboard'
-    | '/explanations'
-    | '/forecast'
-    | '/hotspots'
-    | '/live-map'
-    | '/monitoring'
-    | '/settings'
-    | '/api/alerts/bulk-ack'
+  to: '/' | '/forecast' | '/live-map' | '/monitoring'
   id:
     | '__root__'
     | '/'
     | '/_app'
-    | '/_app/alerts'
-    | '/_app/dashboard'
-    | '/_app/explanations'
     | '/_app/forecast'
-    | '/_app/hotspots'
     | '/_app/live-map'
     | '/_app/monitoring'
-    | '/_app/settings'
-    | '/api/alerts/bulk-ack'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
-  ApiAlertsBulkAckRoute: typeof ApiAlertsBulkAckRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -176,13 +95,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/monitoring': {
       id: '/_app/monitoring'
       path: '/monitoring'
@@ -197,13 +109,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLiveMapRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/hotspots': {
-      id: '/_app/hotspots'
-      path: '/hotspots'
-      fullPath: '/hotspots'
-      preLoaderRoute: typeof AppHotspotsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/forecast': {
       id: '/_app/forecast'
       path: '/forecast'
@@ -211,57 +116,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppForecastRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/explanations': {
-      id: '/_app/explanations'
-      path: '/explanations'
-      fullPath: '/explanations'
-      preLoaderRoute: typeof AppExplanationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/alerts': {
-      id: '/_app/alerts'
-      path: '/alerts'
-      fullPath: '/alerts'
-      preLoaderRoute: typeof AppAlertsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/api/alerts/bulk-ack': {
-      id: '/api/alerts/bulk-ack'
-      path: '/api/alerts/bulk-ack'
-      fullPath: '/api/alerts/bulk-ack'
-      preLoaderRoute: typeof ApiAlertsBulkAckRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 interface AppRouteChildren {
-  AppAlertsRoute: typeof AppAlertsRoute
-  AppDashboardRoute: typeof AppDashboardRoute
-  AppExplanationsRoute: typeof AppExplanationsRoute
   AppForecastRoute: typeof AppForecastRoute
-  AppHotspotsRoute: typeof AppHotspotsRoute
   AppLiveMapRoute: typeof AppLiveMapRoute
   AppMonitoringRoute: typeof AppMonitoringRoute
-  AppSettingsRoute: typeof AppSettingsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAlertsRoute: AppAlertsRoute,
-  AppDashboardRoute: AppDashboardRoute,
-  AppExplanationsRoute: AppExplanationsRoute,
   AppForecastRoute: AppForecastRoute,
-  AppHotspotsRoute: AppHotspotsRoute,
   AppLiveMapRoute: AppLiveMapRoute,
   AppMonitoringRoute: AppMonitoringRoute,
-  AppSettingsRoute: AppSettingsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -269,7 +136,6 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
-  ApiAlertsBulkAckRoute: ApiAlertsBulkAckRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

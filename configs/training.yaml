@@ -1,0 +1,8 @@
+horizons_minutes: [15, 60, 240]
+quantiles: [0.1, 0.5, 0.9]
+minimum_train_days: 28
+validation_days: 7
+step_days: 7
+promotion:
+  maximum_champion_regression: 0.02
+  maximum_peak_mae: 12.0

@@ -1,0 +1,33 @@
+sources:
+  - name: vnexpress_traffic
+    type: rss
+    url: https://vnexpress.net/rss/giao-thong.rss
+    enabled: true
+  - name: tuoitre_traffic
+    type: rss
+    url: https://tuoitre.vn/rss/giao-thong.rss
+    enabled: true
+  - name: dantri_current_affairs
+    type: rss
+    url: https://dantri.com.vn/rss/thoi-su.rss
+    enabled: true
+  - name: vietnamnet_current_affairs
+    type: rss
+    url: https://vietnamnet.vn/thoi-su.rss
+    enabled: true
+
+# Bounded monitoring anchors. Add a point only when its segment identifier is
+# stable and both providers can cover the coordinate.
+points:
+  - {city: hanoi, segment_id: HN_HK_001, weather_cell_id: HN_W_HK, lat: 21.0288, lon: 105.8520}
+  - {city: hanoi, segment_id: HN_BD_001, weather_cell_id: HN_W_BD, lat: 21.0326, lon: 105.8211}
+  - {city: hanoi, segment_id: HN_CG_001, weather_cell_id: HN_W_CG, lat: 21.0320, lon: 105.8006}
+  - {city: hanoi, segment_id: HN_TX_001, weather_cell_id: HN_W_TX, lat: 20.9956, lon: 105.8220}
+  - {city: hanoi, segment_id: HN_RR3_001, weather_cell_id: HN_W_RR3, lat: 20.9988, lon: 105.7994}
+  - {city: hanoi, segment_id: HN_VNG_001, weather_cell_id: HN_W_VNG, lat: 21.1378, lon: 105.7928}
+  - {city: hcmc, segment_id: HCMC_D1_001, weather_cell_id: HCMC_W_D1, lat: 10.7757, lon: 106.7004}
+  - {city: hcmc, segment_id: HCMC_D3_001, weather_cell_id: HCMC_W_D3, lat: 10.7890, lon: 106.6820}
+  - {city: hcmc, segment_id: HCMC_BT_001, weather_cell_id: HCMC_W_BT, lat: 10.8015, lon: 106.7148}
+  - {city: hcmc, segment_id: HCMC_TD_001, weather_cell_id: HCMC_W_TD, lat: 10.8230, lon: 106.7600}
+  - {city: hcmc, segment_id: HCMC_Q7_001, weather_cell_id: HCMC_W_Q7, lat: 10.7298, lon: 106.7014}
+  - {city: hcmc, segment_id: HCMC_CL_001, weather_cell_id: HCMC_W_TD, lat: 10.7700, lon: 106.7800}

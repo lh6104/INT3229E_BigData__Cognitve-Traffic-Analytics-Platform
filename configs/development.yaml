@@ -1,0 +1,14 @@
+environment: development
+kafka_bootstrap_servers: localhost:9092
+object_store_uri: s3://cognitive-traffic
+s3_endpoint_url: http://localhost:9000
+s3_access_key: minioadmin
+s3_secret_key: minioadmin
+s3_region: us-east-1
+postgres_dsn: postgresql://postgres:postgres@localhost:5432/traffic_analytics
+redis_url: redis://localhost:6380/0
+mlflow_tracking_uri: http://localhost:5000
+model_name: traffic-speed-quantiles
+allowed_lateness_seconds: 300
+feature_version: "1"
+schema_version: "1"

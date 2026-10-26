@@ -73,13 +73,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Cognitive Traffic Analytics" },
-      { name: "description", content: "Local traffic analytics, forecasting, and evidence-backed operator workflows." },
-      { name: "author", content: "Lovable" },
+      { name: "description", content: "Replayable traffic stream processing and observable forecasting." },
       { property: "og:title", content: "Cognitive Traffic Analytics" },
       { property: "og:description", content: "Local traffic analytics, forecasting, and operator evidence." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

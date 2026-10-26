@@ -1,17 +1,17 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import type { ComponentType } from "react";
 import { useEffect, useState } from "react";
 import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
-import { useAppStore, type CityKey } from "@/lib/store/useAppStore";
+
+type CityKey = "hanoi" | "hcmc";
 
 const searchSchema = z.object({
-  city: fallback(z.enum(["hanoi", "hcmc", "all"]), "hanoi").default("hanoi"),
+  city: z.enum(["hanoi", "hcmc", "all"]).catch("hanoi").default("hanoi"),
 });
 
 export const Route = createFileRoute("/_app/live-map")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: (search) => searchSchema.parse(search),
   component: LiveMap,
 });
 
@@ -24,11 +24,6 @@ const LABEL_TO_KEY: Record<MapCityLabel, MapCityKey> = { All: "all", Hanoi: "han
 function LiveMap() {
   const { city } = Route.useSearch() as { city: MapCityKey };
   const navigate = useNavigate({ from: "/live-map" });
-  const setSelectedCity = useAppStore((s) => s.setSelectedCity);
-
-  useEffect(() => {
-    if (city !== "all") setSelectedCity(city);
-  }, [city, setSelectedCity]);
 
   return (
     <PlaceholderPage title="Live Map" subtitle="Local traffic snapshot across monitored demo cities">
@@ -37,9 +32,6 @@ function LiveMap() {
         onCityChange={(label) => navigate({ search: { city: LABEL_TO_KEY[label] } })}
         onViewForecast={(id: string) =>
           navigate({ to: "/forecast", search: { city: city === "all" ? "hanoi" : city, segment: id } })
-        }
-        onViewExplanation={(id: string) =>
-          navigate({ to: "/explanations", search: { city: city === "all" ? "hanoi" : city, segment: id, horizon: "15m" } })
         }
       />
     </PlaceholderPage>
@@ -50,7 +42,6 @@ function ClientLiveMapView(props: {
   city: MapCityLabel;
   onCityChange: (city: MapCityLabel) => void;
   onViewForecast: (segmentId: string) => void;
-  onViewExplanation: (segmentId: string) => void;
 }) {
   const [LiveMapView, setLiveMapView] = useState<null | ComponentType<typeof props>>(null);
 

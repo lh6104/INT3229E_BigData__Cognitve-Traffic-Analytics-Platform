@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TopBar } from "@/components/layout/TopBar";
 
@@ -17,7 +16,6 @@ function AppLayout() {
           <Outlet />
         </main>
       </div>
-      <Toaster position="top-right" richColors />
     </div>
   );
 }

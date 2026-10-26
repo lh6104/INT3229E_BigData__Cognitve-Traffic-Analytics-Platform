@@ -12,6 +12,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+.local/
 
 node_modules/
 frontend/node_modules/
@@ -54,3 +55,6 @@ airflow.cfg
 PROJECT_A_TO_Z_ANALYSIS.md
 
 data/
+models/
+reports/
+airflow-webserver.pid

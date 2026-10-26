@@ -1,0 +1,10 @@
+{
+  "weather_cell_id": "HN_W_HK",
+  "city": "hanoi",
+  "event_time": "2026-08-12T08:00:00Z",
+  "ingested_at": "2026-08-12T08:00:02Z",
+  "source": "fixture",
+  "temperature_c": 31.0,
+  "precipitation_mm": 2.0,
+  "wind_speed_kmh": 7.2
+}
