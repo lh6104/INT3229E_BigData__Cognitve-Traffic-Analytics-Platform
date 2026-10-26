@@ -1,0 +1,44 @@
+# Contest demo only: two public free web services and one disposable free PostgreSQL.
+# No ingestion, provider polling, forecasting worker, or synthetic observations.
+services:
+  - type: web
+    name: traffic-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerContext: .
+    dockerfilePath: infra/docker/api.Dockerfile
+    healthCheckPath: /system/health
+    envVars:
+      - key: ENVIRONMENT
+        value: demo
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: traffic-demo-db
+          property: connectionString
+
+  - type: web
+    name: traffic-dashboard
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerContext: .
+    dockerfilePath: infra/docker/frontend.Dockerfile
+    healthCheckPath: /
+    envVars:
+      # A free API cannot receive private-network requests from a free frontend.
+      # Render supplies only the hostname; frontend/serve.mjs adds https://.
+      - key: API_UPSTREAM
+        fromService:
+          name: traffic-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
+
+databases:
+  - name: traffic-demo-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "16"
+    databaseName: traffic_analytics
+    user: traffic_demo
+    ipAllowList: []

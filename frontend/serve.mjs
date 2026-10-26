@@ -10,6 +10,8 @@ const types = {'.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+
 export function createHandler({clientDir = resolve('dist/client'),
   apiUpstream = process.env.API_UPSTREAM || 'http://api:8000', fetchApi = fetch, serverEntry} = {}) {
   const root = resolve(clientDir);
+  // Render's RENDER_EXTERNAL_HOSTNAME contains no scheme; local Compose provides http://.
+  const upstream = (/^https?:\/\//i.test(apiUpstream) ? apiUpstream : `https://${apiUpstream}`).replace(/\/+$/, '');
   let entry = serverEntry;
   return async request => {
     const url = new URL(request.url);
@@ -20,8 +22,19 @@ export function createHandler({clientDir = resolve('dist/client'),
         for (const key of ['accept', 'traceparent', 'tracestate']) {
           if (request.headers.has(key)) headers.set(key, request.headers.get(key));
         }
-        return await fetchApi(`${apiUpstream}${url.pathname.slice(4)}${url.search}`,
-          {method: request.method, headers, signal: AbortSignal.timeout(10000), redirect: 'manual'});
+        // Allow a free upstream to wake after idle; the original 10s abort was too short.
+        const response = await fetchApi(`${upstream}${url.pathname.slice(4)}${url.search}`,
+          {method: request.method, headers, signal: AbortSignal.timeout(120000), redirect: 'manual'});
+        // Node fetch transparently decompresses upstream bodies; these headers then describe
+        // the compressed bytes, not the body the HTTP server sends to the browser.
+        const responseHeaders = new Headers(response.headers);
+        responseHeaders.delete('content-encoding');
+        responseHeaders.delete('content-length');
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: responseHeaders,
+        });
       } catch {
         return Response.json({detail: 'Traffic API is unavailable'}, {status: 503});
       }
