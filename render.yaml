@@ -8,10 +8,6 @@ services:
     region: singapore
     dockerContext: .
     dockerfilePath: infra/docker/api.Dockerfile
-    dockerCommand: >-
-      /bin/sh -c 'python -m cognitive_traffic.storage.bootstrap &&
-      exec uvicorn cognitive_traffic.api.main:app --host 0.0.0.0
-      --port "${PORT:-10000}"'
     healthCheckPath: /system/health
     envVars:
       - key: ENVIRONMENT

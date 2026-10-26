@@ -22,9 +22,13 @@ def test_render_demo_blueprint_is_three_resources_only():
     assert api["dockerfilePath"] == "infra/docker/api.Dockerfile"
     assert api["dockerContext"] == "."
     assert api["healthCheckPath"] == "/system/health"
-    assert "cognitive_traffic.storage.bootstrap" in api["dockerCommand"]
-    assert "&&" in api["dockerCommand"]
-    assert '"${PORT:-10000}"' in api["dockerCommand"]
+    assert "dockerCommand" not in api  # Use the image CMD; Render must not re-tokenize a shell chain.
+    dockerfile = (ROOT / api["dockerfilePath"]).read_text()
+    assert "CMD [\"/app/api-entrypoint.sh\"]" in dockerfile
+    entrypoint = (ROOT / "infra/docker/api-entrypoint.sh").read_text()
+    assert "python -m cognitive_traffic.storage.bootstrap" in entrypoint
+    assert "exec uvicorn cognitive_traffic.api.main:app" in entrypoint
+    assert '--port "${PORT:-10000}"' in entrypoint
     assert api["envVars"][-1] == {"key": "POSTGRES_DSN", "fromDatabase": {
         "name": "traffic-demo-db", "property": "connectionString"}}
 
