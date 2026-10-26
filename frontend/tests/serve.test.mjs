@@ -18,6 +18,28 @@ test('same-origin API proxy preserves backend status, body and correlation', asy
   assert.equal(await result.text(), '[]');
 });
 
+test('Render hostname-only upstream uses HTTPS without changing the browser origin', async () => {
+  const handler = createHandler({apiUpstream: 'traffic-api-demo.onrender.com',
+    fetchApi: async (url, init) => {
+      assert.equal(url, 'https://traffic-api-demo.onrender.com/system/health');
+      assert.equal(init.method, 'GET');
+      assert.equal(init.signal.aborted, false);
+      return Response.json({status: 'healthy'});
+    }});
+  const result = await handler(new Request('https://traffic-dashboard-demo.onrender.com/api/system/health'));
+  assert.equal(result.status, 200);
+  assert.equal((await result.json()).status, 'healthy');
+});
+
+test('explicit HTTPS upstream does not double-prefix or double-slash', async () => {
+  const handler = createHandler({apiUpstream: 'https://traffic-api-demo.onrender.com/',
+    fetchApi: async url => {
+      assert.equal(url, 'https://traffic-api-demo.onrender.com/monitoring/points?city=all');
+      return Response.json([]);
+    }});
+  assert.equal((await handler(new Request('https://dashboard.test/api/monitoring/points?city=all'))).status, 200);
+});
+
 test('proxy refuses writes and reports connection failure without leaking internals', async () => {
   const handler = createHandler({fetchApi: async () => { throw new Error('secret-sentinel'); }});
   assert.equal((await handler(new Request('http://localhost/api/roads', {method: 'POST'}))).status, 405);
